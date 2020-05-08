@@ -69,7 +69,7 @@ ui <-
             tags$link(rel="stylesheet", type="text/css",href="style.css"),
             tags$script(type="text/javascript", src = "googleAnalytics.js"),
             tags$head(tags$link( rel="icon", type="image/png", href="favicon-32x32.png", sizes="32x32" ),
-                      tags$title("NAWRA Draft Suitability Products")
+                      tags$title("TERN Landscapes Review")
             )
         )
     ),
@@ -110,7 +110,7 @@ ui <-
                 #tabPanel("Suitability Maps", leafletOutput("mymap", width = "600px", height = "400px"),
                 tabPanel("Map Viewer", 
                          bsAlert("waitalert"), 
-                         withSpinner(leafletOutput("wMainMap", height = "850"))
+                         withSpinner(leafletOutput("wMainMap", height = "700"))
                          
                         
                 ), 
@@ -146,8 +146,9 @@ server <- function(input, output, session) {
     
     observe({
         req(input$wProduct)
-            RV$currentProductRecord <- configInfo[configInfo$Product == input$wProduct]
+            RV$currentProductRecord <- configInfo[configInfo$Product == input$wProduct, ]
             dps <- str_split(RV$currentProductRecord$Depths, ';')
+            print(dps)
             updateSelectInput(session, "wProductDepth", choices =  dps[[1]])
     })
  
@@ -162,14 +163,17 @@ server <- function(input, output, session) {
     
     output$wMainMap <- renderLeaflet({
         
-            # pal <- colorNumeric(c("brown", "lightgreen",  "darkgreen"), values(r),na.color = "transparent")
-            # CPCOLS <- c("burlywood4", "burlywood3", "cornsilk", "darkseagreen1", "chartreuse", "chartreuse3", "chartreuse4")
-            # pal <- colorNumeric(CPCOLS, values(r),na.color = "transparent")
-            # 
-            leaflet() %>% setView(lng = 140, lat = -26, zoom = 4) %>% addTiles() %>%
+        req(input$wProduct, input$wProductType, input$wProductDepth)
+        
+        p <- input$wProduct
+        t <- input$wProductType
+        d <- input$wProductDepth
+        layer <- paste0(p, '_', t, '_', d)
+        
+            leaflet() %>% setView(lng = 134, lat = -26, zoom = 4) %>% addTiles() %>%
                 addWMSTiles(
-                    "http://localhost/cgi-bin/mapserv.exe?map=C:/ms4w/SLGA/SLGA.map&SERVICE=WMS&VERSION=1.0.0",
-                    layers = "test1",
+                   OGCserver,
+                    layers = layer,
                     options = WMSTileOptions(format = "image/png", transparent = T)
                 )
             
