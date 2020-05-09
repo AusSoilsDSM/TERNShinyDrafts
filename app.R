@@ -1,10 +1,11 @@
 library(shiny)
-
+library(sf)
 library(raster)
 library(rasterVis)
 library(DT)
 library(rhandsontable)
 library(stringr)
+library(leaflet.extras)
 library(leaflet)
 library(utils)
 library(RColorBrewer)
@@ -16,6 +17,7 @@ library(shinyjs)
 library(shinycssloaders)
 
 library(shinymanager)
+library(shinyalert)
 
 source('appConfig.R')
 
@@ -62,7 +64,7 @@ ui <-
           tags$html("For Information about obtaining a login contact "), tags$a(adminName, href=paste0("mailto:", adminEmail,"?Subject=TERN Review Access"))
         ),
         
-        fillPage(
+        fillPage( useShinyalert(),
 
     tagList(
         tags$head(
@@ -95,11 +97,11 @@ ui <-
                     
                      HTML('<br><b>Data Downloads</b>'),
                      wellPanel( 
-                         selectInput("dataset", "Choose product to download:", choices = c("")),
-                         bsTooltip(id = "dataset", title = "Select the type of data set you want to download", placement = "top", trigger = "hover"),
-                         
-                         downloadButton('downloadData', 'Download Data'),
-                         bsTooltip(id = "downloadData", title = "Click here to download the select data sets", placement = "top", trigger = "hover"),
+                         # selectInput("dataset", "Choose product to download:", choices = c("")),
+                         # bsTooltip(id = "dataset", title = "Select the type of data set you want to download", placement = "top", trigger = "hover"),
+                         # 
+                         downloadButton('downloadData', 'Download Current RasterData'),
+                         bsTooltip(id = "downloadData", title = "Click here to download the currently displayed raster", placement = "top", trigger = "hover"),
                          
                          bsAlert("downloadalert")
                          
@@ -135,6 +137,10 @@ server <- function(input, output, session) {
     
     RV <- reactiveValues()
     RV$currentProductRecord <- NULL
+    RV$currentSites <- NULL
+    RV$currentSiteLabels <- NULL
+    RV$currentRaster <- NULL
+    RV$isMultiLayer <- NULL
     
     #########   Productivity Map Combos   ###########################
     observe({
@@ -148,8 +154,25 @@ server <- function(input, output, session) {
         req(input$wProduct)
             RV$currentProductRecord <- configInfo[configInfo$Product == input$wProduct, ]
             dps <- str_split(RV$currentProductRecord$Depths, ';')
-            print(dps)
             updateSelectInput(session, "wProductDepth", choices =  dps[[1]])
+            
+            if(length(dps[[1]]) > 1){RV$isMultiLayer=T}else{RV$isMultiLayer=F}
+            
+            RV$currentSites <- st_read(paste0("E:/ReviewDataStore/Clay/Sites/Clay.shp"))
+            df <- st_drop_geometry(RV$currentSites )
+            
+            #uri = paste0(OGCserver, '&SERVICE=WMS&VERSION=1.1.1&layer=', layer, '&REQUEST=getlegendgraphic&FORMAT=image/png')
+            RV$currentSiteLabels <- lapply(seq(nrow(df)), function(i) {
+                paste0( '<li>Site Name : ', df[i, "ID"], '</li>',
+                        '<li>0-5cm : ', if(!is.na(df[i, "GSM1"])){format(round(df[i, "GSM1"], 2), nsmall = 2)}else{'NA'}, '</li>',
+                        '<li>5-15cm : ',  if(!is.na(df[i, "GSM2"])){format(round(df[i, "GSM2"], 2), nsmall = 2)}else{'NA'}, '</li>',
+                        '<li>15-30cm : ',  if(!is.na(df[i, "GSM3"])){format(round(df[i, "GSM3"], 2), nsmall = 2)}else{'NA'}, '</li>',
+                        '<li>30-60cm : ',  if(!is.na(df[i, "GSM4"])){format(round(df[i, "GSM4"], 2), nsmall = 2)}else{'NA'}, '</li>',
+                        '<li>60-100cm : ',  if(!is.na(df[i, "GSM5"])){format(round(df[i, "GSM5"], 2), nsmall = 2)}else{'NA'}, '</li>',
+                        '<li>100-200cm : ',  if(!is.na(df[i, "GSM6"])){format(round(df[i, "GSM6"], 2), nsmall = 2)}else{'NA'}, '</li>'
+                        
+                )
+            })
     })
  
     output$pdfStatsview <- renderUI({
@@ -170,33 +193,130 @@ server <- function(input, output, session) {
         d <- input$wProductDepth
         layer <- paste0(p, '_', t, '_', d)
         
-            leaflet() %>% setView(lng = 134, lat = -26, zoom = 4) %>% addTiles() %>%
-                addWMSTiles(
-                   OGCserver,
+            leaflet() %>% setView(lng = 134, lat = -26, zoom = 4) %>% addProviderTiles("Esri.WorldImagery", options = providerTileOptions(noWrap = F), group = "Satelite Image") %>%
+             addTiles(group = "Map")  %>%
+                 addWMSTiles(
+                    OGCserver,
                     layers = layer,
-                    options = WMSTileOptions(format = "image/png", transparent = T)
-                )
-            
-            
-            
-            # leaflet() %>%
-            #     
-            #     addProviderTiles("Esri.WorldImagery", options = providerTileOptions(noWrap = TRUE), group = "Satelite Image") %>%
-            #     addTiles(group = "Map") 
-                # fitBounds( e@xmin, e@ymin, e@xmax, e@ymax) %>%
-                # addRasterImage(r, colors = pal, opacity = 0.8 ,  group = "Farm Data")  %>%
+                    options = WMSTileOptions(format = "image/png", transparent = T),
+                    group = "SLGA"
+                )   %>%
+            #proxy %>% addMarkers( data=sites, clusterOptions = markerClusterOptions(), group = 'Sites', label = lapply(labs, HTML) ) 
+           addWMSLegend(uri = paste0(OGCserver, '&SERVICE=WMS&VERSION=1.1.1&layer=', layer, '&REQUEST=getlegendgraphic&FORMAT=image/png'),  position =  "bottomright") %>%
+           addLayersControl(
+                baseGroups = c("Satelite Image", "Map"),
+                overlayGroups = c( 'Sites', "SLGA"),
+                options = layersControlOptions(collapsed = FALSE)
+            ) %>%
                 
-                # 
-                # addLayersControl(
-                #     baseGroups = c("Satelite Image", "Map"),
-                #     overlayGroups = c("Farm Data"),
-                #     options = layersControlOptions(collapsed = FALSE)
-                # ) %>%
-                # leaflet::addLegend(pal = pal, values = values(r), title = "Yield - T/Ha")
-            
-        
-    
+                addFullscreenControl() %>%
+                leafem::addMouseCoordinates() %>%
+                leaflet.extras::addSearchOSM(options = searchOptions(autoCollapse = T, minLength = 2)) 
 })
+    
+    
+    observe({
+        
+    req(input$wProduct, input$wProductType, input$wProductDepth)
+    
+    p <- input$wProduct
+    t <- input$wProductType
+    d <- input$wProductDepth
+    layer <- paste0(p, '_', t, '_', d)
+    RV$currentRaster <- raster(paste0(dataStorePath, '/', input$wProduct, '/Rasters/', layer, '.tif'))
+    
+    })
+    
+    
+    observe({
+        
+        req(input$wProduct, input$wProductType, input$wProductDepth)
+       
+        p <- input$wProduct
+        t <- input$wProductType
+        d <- input$wProductDepth
+        layer <- paste0(p, '_', t, '_', d)
+        
+        
+        proxy <- leafletProxy("wMainMap")
+            # proxy %>%  addWMSTiles(
+            #     OGCserver,
+            #     layers = layer,
+            #     options = WMSTileOptions(format = "image/png", transparent = T),
+            #     group = "SLGA"
+            # ) 
+            proxy %>% addMarkers( data=sites, clusterOptions = markerClusterOptions(), group = 'Sites', label = lapply( RV$currentSiteLabels, HTML) ) 
+            proxy %>%  addWMSLegend(uri = paste0(OGCserver, '&SERVICE=WMS&VERSION=1.1.1&layer=', layer, '&REQUEST=getlegendgraphic&FORMAT=image/png'),  position =  "bottomright")
+           
+           
+
+    })
+    
+    observe({
+        
+        req(input$wProduct, input$wProductType, input$wProductDepth)
+        
+        p <- input$wProduct
+        t <- input$wProductType
+        d <- input$wProductDepth
+        layer <- paste0(p, '_', t, '_', d)
+        proxy2 <- leafletProxy("wMainMap")
+               proxy2 %>%  addWMSLegend(uri = paste0(OGCserver, '&SERVICE=WMS&VERSION=1.1.1&layer=', layer, '&REQUEST=getlegendgraphic&FORMAT=image/png'),  position =  "bottomright")
+        
+        
+    })
+    
+    
+    
+    
+    output$downloadData <- downloadHandler(
+        filename = function() {
+                    fname <- paste0(input$wProduct,'_',  input$wProductType,'_', input$wProductDepth, '.tif')
+            fname
+        },
+        content = function(file) {
+
+            Rname <- 'E:/ReviewDataStore/Clay/Rasters/Clay_Model-Value_0-5.tif'
+                    createAlert(session, "downloadalert", "downloadingalert", title = "", content = "<img src=wait.gif> Extracting the requested data .....", append = FALSE)
+                    file.copy(Rname, file)
+                    closeAlert(session, "downloadingalert")
+        })
+ 
+    
+    observe({
+        
+        req(RV$currentRaster)
+        
+        click<-input$wMainMap_click
+        if(is.null(click))
+            return()
+
+        
+        print(click)
+        
+        
+        
+       if(RV$isMultiLayer){
+           
+           RV$currentProductRecord <- configInfo[configInfo$Product == input$wProduct, ]
+           dps <- str_split(RV$currentProductRecord$Depths, ';')
+           valstr = ''
+           for (i in 1:length(dps[[1]])) {
+               r <- raster(paste0(dataStorePath, '/', input$wProduct, '/Rasters/', input$wProduct,'_',  input$wProductType,'_', dps[[1]][i], '.tif'))
+               ptVal <- extract(r, data.frame(click$lng, click$lat))
+               valstr <- paste0(valstr, '<li>',dps[[1]][i],' : ', format(round(ptVal, 2), nsmall = 2), '</li>')
+               print(i)
+           }
+       }else{
+           ptVal <- extract(RV$currentRaster, data.frame(click$lng, click$lat))
+           valstr = paste0('<b>', format(round(ptVal, 2), nsmall = 2), '</br>')
+           print('here')
+       }
+        
+        shinyalert("SLGA",  valstr, type = "info", html=T)
+        
+    })
+
     
     
 }
