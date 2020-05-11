@@ -47,9 +47,9 @@ credentials <- data.frame(
     stringsAsFactors = FALSE
 )
 
-configInfo <- read.csv(paste0(dataStorePath, '/DataStoreConfig.csv'), stringsAsFactors = F)
+#configInfo <- read.csv(paste0(dataStorePath, '/DataStoreConfig.csv'), stringsAsFactors = F)
 
-
+configInfo <- read.csv(dataStorePath, '/DataStoreConfig.csv', stringsAsFactors = F)
 
 
 ui <- 
@@ -158,7 +158,7 @@ server <- function(input, output, session) {
             
             if(length(dps[[1]]) > 1){RV$isMultiLayer=T}else{RV$isMultiLayer=F}
             
-            RV$currentSites <- st_read(paste0("E:/ReviewDataStore/Clay/Sites/Clay.shp"))
+            RV$currentSites <- st_read(paste0("/Clay/Sites/Clay.shp"))
             df <- st_drop_geometry(RV$currentSites )
             
             #uri = paste0(OGCserver, '&SERVICE=WMS&VERSION=1.1.1&layer=', layer, '&REQUEST=getlegendgraphic&FORMAT=image/png')
