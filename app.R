@@ -18,6 +18,7 @@ library(shinycssloaders)
 
 library(shinymanager)
 library(shinyalert)
+library(shinybusy)
 
 source('appConfig.R')
 
@@ -64,7 +65,7 @@ ui <-
           tags$html("For Information about obtaining a login contact "), tags$a(adminName, href=paste0("mailto:", adminEmail,"?Subject=TERN Review Access"))
         ),
         
-        fillPage( useShinyalert(),
+        fillPage( useShinyalert(), 
 
     tagList(
         tags$head(
@@ -72,11 +73,26 @@ ui <-
             tags$script(type="text/javascript", src = "googleAnalytics.js"),
             tags$head(tags$link( rel="icon", type="image/png", href="favicon-32x32.png", sizes="32x32" ),
                       tags$title("TERN Landscapes Review")
+                      
             )
         )
     ),
     
-    
+    tags$style(
+        
+        # Colorize the actionButton.
+        HTML(".alert {
+                         background-color: #F5F5F5;
+                         padding: 0px; margin-bottom: 10px;
+                         color: black;
+                         height: 50px;
+                     } 
+             
+             .alert-info {
+             border-color: #F5F5F5;
+             }"
+        )
+    ),
     HTML("<p> <img src='Logos/TERN-NCRIS.jpg' height=100 width=200>
             
             <font size='6'><b>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
@@ -86,7 +102,7 @@ ui <-
     sidebarLayout(
         sidebarPanel(width=2, HTML('The information contained in this site is only for the use of the TERN Landscapes team. <b>Do not distribute information outside of the project team.</b><br><br>'),
                      
-                     htmlOutput("debugtext"),
+                     #htmlOutput("debugtext"),
                      
                      bsAlert("alert"),
                      
@@ -109,10 +125,12 @@ ui <-
         ),
         mainPanel(
             tabsetPanel(
+                
+                
                 #tabPanel("Suitability Maps", leafletOutput("mymap", width = "600px", height = "400px"),
                 tabPanel("Map Viewer", 
-                         bsAlert("waitalert"), 
-                         withSpinner(leafletOutput("wMainMap", height = "700"))
+                         
+                         leafletOutput("wMainMap", height = "700")
                          
                         
                 ), 
@@ -148,13 +166,26 @@ server <- function(input, output, session) {
         req(configInfo)
             products <- as.character(configInfo$Product)
             updateSelectInput(session, "wProduct", choices =  products)
+           
     })
     
     observe({
         req(input$wProduct)
+        
+            updateSelectInput(session, "wProductDepth", choices =  NULL)
             RV$currentProductRecord <- configInfo[configInfo$Product == input$wProduct, ]
             dps <- str_split(RV$currentProductRecord$Depths, ';')
             updateSelectInput(session, "wProductDepth", choices =  dps[[1]])
+            
+    })
+    
+    observe({
+        req(input$wProduct)
+        shinyBS::closeAlert(session, "waitalert")
+        shinyBS::createAlert(session, "alert", "waitalert", title = "", content = paste0("<div id='zs1'><img src=wait.gif> Drawing map", " .....</div>"), append = FALSE, dismiss = F)
+        
+        RV$currentProductRecord <- configInfo[configInfo$Product == input$wProduct, ]
+        dps <- str_split(RV$currentProductRecord$Depths, ';')
             
             if(length(dps[[1]]) > 1){RV$isMultiLayer=T}else{RV$isMultiLayer=F}
             
@@ -173,6 +204,10 @@ server <- function(input, output, session) {
                         
                 )
             })
+            
+            shinyBS::closeAlert(session, "waitalert")
+            shinyBS::createAlert(session, "alert", "waitalert", title = "", content = NULL, append = FALSE, dismiss = F)
+            
     })
  
     output$pdfStatsview <- renderUI({
@@ -186,10 +221,10 @@ server <- function(input, output, session) {
     
     output$wMainMap <- renderLeaflet({
         
-        req(input$wProduct, input$wProductType, input$wProductDepth)
+        req( input$wProductDepth)
         
-        p <- input$wProduct
-        t <- input$wProductType
+        p <- isolate(input$wProduct)
+        t <- isolate(input$wProductType)
         d <- input$wProductDepth
         layer <- paste0(p, '_', t, '_', d)
         
@@ -217,20 +252,22 @@ server <- function(input, output, session) {
     
     observe({
         
-    req(input$wProduct, input$wProductType, input$wProductDepth)
+    req(input$wProductDepth)
     
-    p <- input$wProduct
-    t <- input$wProductType
+        p <- isolate(input$wProduct)
+        t <- isolate(input$wProductType)
     d <- input$wProductDepth
     layer <- paste0(p, '_', t, '_', d)
-    RV$currentRaster <- raster(paste0(dataStorePath, '/', input$wProduct, '/Rasters/', layer, '.tif'))
+    
+    #print(paste0(dataStorePath, '/', input$wProduct, '/Rasters/', layer, '.tif'))
+    RV$currentRaster <- raster(paste0(dataStorePath, '/',  p, '/Rasters/', layer, '.tif'))
     
     })
     
     
     observe({
         
-        req(input$wProduct, input$wProductType, input$wProductDepth)
+        req(input$wProductType, input$wProductDepth)
        
         p <- input$wProduct
         t <- input$wProductType
