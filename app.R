@@ -167,6 +167,8 @@ server <- function(input, output, session) {
         req(configInfo)
             products <- as.character(configInfo$Product)
             updateSelectInput(session, "wProduct", choices =  products)
+            
+           
            
     })
     
