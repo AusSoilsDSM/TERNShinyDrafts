@@ -50,8 +50,9 @@ credentials <- data.frame(
 
 #configInfo <- read.csv(paste0(dataStorePath, '/DataStoreConfig.csv'), stringsAsFactors = F)
 
-configInfo <- read.csv(dataStorePath, '/DataStoreConfig.csv', stringsAsFactors = F)
-
+print(dataStorePath)
+configInfo <- read.csv(paste0(dataStorePath, '/DataStoreConfig.csv'), stringsAsFactors = F)
+print(dataStorePath)
 
 ui <- 
       secure_app( theme = 'journal', tags_top=tags$div(
@@ -189,7 +190,7 @@ server <- function(input, output, session) {
             
             if(length(dps[[1]]) > 1){RV$isMultiLayer=T}else{RV$isMultiLayer=F}
             
-            RV$currentSites <- st_read(paste0("/Clay/Sites/Clay.shp"))
+            RV$currentSites <- st_read(paste0(dataStorePath, "/Clay/Sites/Clay.shp"))
             df <- st_drop_geometry(RV$currentSites )
             
             #uri = paste0(OGCserver, '&SERVICE=WMS&VERSION=1.1.1&layer=', layer, '&REQUEST=getlegendgraphic&FORMAT=image/png')
@@ -282,7 +283,7 @@ server <- function(input, output, session) {
             #     options = WMSTileOptions(format = "image/png", transparent = T),
             #     group = "SLGA"
             # ) 
-            proxy %>% addMarkers( data=sites, clusterOptions = markerClusterOptions(), group = 'Sites', label = lapply( RV$currentSiteLabels, HTML) ) 
+            proxy %>% addMarkers( data=RV$currentSites, clusterOptions = markerClusterOptions(), group = 'Sites', label = lapply( RV$currentSiteLabels, HTML) ) 
             proxy %>%  addWMSLegend(uri = paste0(OGCserver, '&SERVICE=WMS&VERSION=1.1.1&layer=', layer, '&REQUEST=getlegendgraphic&FORMAT=image/png'),  position =  "bottomright")
            
            
