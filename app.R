@@ -48,11 +48,9 @@ credentials <- data.frame(
     stringsAsFactors = FALSE
 )
 
-#configInfo <- read.csv(paste0(dataStorePath, '/DataStoreConfig.csv'), stringsAsFactors = F)
 
-print(dataStorePath)
 configInfo <- read.csv(paste0(dataStorePath, '/DataStoreConfig.csv'), stringsAsFactors = F)
-print(dataStorePath)
+
 
 ui <- 
       secure_app( theme = 'journal', tags_top=tags$div(
@@ -66,7 +64,7 @@ ui <-
           tags$html("For Information about obtaining a login contact "), tags$a(adminName, href=paste0("mailto:", adminEmail,"?Subject=TERN Review Access"))
         ),
         
-        fillPage( useShinyalert(), 
+        fillPage( useShinyalert(), shinyjs::useShinyjs(),
 
     tagList(
         tags$head(
@@ -108,8 +106,8 @@ ui <-
                      bsAlert("alert"),
                      
                      fluidRow(selectInput("wProduct", "Product", choices = NULL)),
-                     fluidRow(selectInput("wProductType", "Product Type", choices = productTypes)),
-                     fluidRow(selectInput("wProductDepth", "Product Deph", choices = NULL)),
+                     fluidRow(selectInput("wProductType", "Product Type", choices = NULL)),
+                     fluidRow(selectInput("wProductDepth", "Product Depth", choices = NULL)),
                      
                     
                      HTML('<br><b>Data Downloads</b>'),
@@ -159,7 +157,8 @@ server <- function(input, output, session) {
     RV$currentSites <- NULL
     RV$currentSiteLabels <- NULL
     RV$currentRaster <- NULL
-    RV$isMultiLayer <- NULL
+    RV$productTypes <- NULL
+    RV$productDepths <- NULL
     
     #########   Productivity Map Combos   ###########################
     observe({
@@ -167,6 +166,9 @@ server <- function(input, output, session) {
         req(configInfo)
             products <- as.character(configInfo$Product)
             updateSelectInput(session, "wProduct", choices =  products)
+            
+            
+            
            
     })
     
@@ -175,39 +177,70 @@ server <- function(input, output, session) {
         
             updateSelectInput(session, "wProductDepth", choices =  NULL)
             RV$currentProductRecord <- configInfo[configInfo$Product == input$wProduct, ]
-            dps <- str_split(RV$currentProductRecord$Depths, ';')
-            updateSelectInput(session, "wProductDepth", choices =  dps[[1]])
             
+            dps <- str_split(RV$currentProductRecord$Depths, ';')
+            if(length(dps[[1]]) > 0 & dps != ''){
+              RV$productDepths <- dps[[1]]
+              updateSelectInput(session, "wProductDepth", choices = RV$productDepths)
+              shinyjs::enable("wProductDepth")
+            }else{
+              RV$productDepths <- NULL
+              updateSelectInput(session, "wProductDepth", choices = c('None'), selected = 'None')
+              #shinyjs::disable("wProductDepth")
+            }
+            
+            dtypes <- str_split(RV$currentProductRecord$Types, ';')
+            if(length(dtypes[[1]]) > 0 & dtypes != ''){
+              RV$productTypes <- dtypes[[1]]
+              updateSelectInput(session, "wProductType", choices = RV$productTypes)
+              shinyjs::enable("wProductType")
+             
+            }else{
+              RV$productTypes <- NULL
+              updateSelectInput(session, "wProductType", choices =c('None'), selected = 'None')
+             # shinyjs::disable("wProductType")
+            }
     })
     
+    
+    getLayer <- reactive({
+      p <- input$wProduct
+      if(input$wProductType!='None'){p <- paste0(p, '_', input$wProductType)}
+      if(input$wProductDepth!='None'){p <- paste0(p, '_', input$wProductDepth)}
+      p
+    })
+    
+
+    
+    
     observe({
-        req(input$wProduct)
-        shinyBS::closeAlert(session, "waitalert")
-        shinyBS::createAlert(session, "alert", "waitalert", title = "", content = paste0("<div id='zs1'><img src=wait.gif> Drawing map", " .....</div>"), append = FALSE, dismiss = F)
-        
-        RV$currentProductRecord <- configInfo[configInfo$Product == input$wProduct, ]
-        dps <- str_split(RV$currentProductRecord$Depths, ';')
-            
-            if(length(dps[[1]]) > 1){RV$isMultiLayer=T}else{RV$isMultiLayer=F}
-            
-            RV$currentSites <- st_read(paste0(dataStorePath, "/Clay/Sites/Clay.shp"))
-            df <- st_drop_geometry(RV$currentSites )
-            
-            #uri = paste0(OGCserver, '&SERVICE=WMS&VERSION=1.1.1&layer=', layer, '&REQUEST=getlegendgraphic&FORMAT=image/png')
-            RV$currentSiteLabels <- lapply(seq(nrow(df)), function(i) {
-                paste0( '<li>Site Name : ', df[i, "ID"], '</li>',
-                        '<li>0-5cm : ', if(!is.na(df[i, "GSM1"])){format(round(df[i, "GSM1"], 2), nsmall = 2)}else{'NA'}, '</li>',
-                        '<li>5-15cm : ',  if(!is.na(df[i, "GSM2"])){format(round(df[i, "GSM2"], 2), nsmall = 2)}else{'NA'}, '</li>',
-                        '<li>15-30cm : ',  if(!is.na(df[i, "GSM3"])){format(round(df[i, "GSM3"], 2), nsmall = 2)}else{'NA'}, '</li>',
-                        '<li>30-60cm : ',  if(!is.na(df[i, "GSM4"])){format(round(df[i, "GSM4"], 2), nsmall = 2)}else{'NA'}, '</li>',
-                        '<li>60-100cm : ',  if(!is.na(df[i, "GSM5"])){format(round(df[i, "GSM5"], 2), nsmall = 2)}else{'NA'}, '</li>',
-                        '<li>100-200cm : ',  if(!is.na(df[i, "GSM6"])){format(round(df[i, "GSM6"], 2), nsmall = 2)}else{'NA'}, '</li>'
-                        
-                )
-            })
-            
-            shinyBS::closeAlert(session, "waitalert")
-            shinyBS::createAlert(session, "alert", "waitalert", title = "", content = NULL, append = FALSE, dismiss = F)
+        # req(input$wProduct)
+        # shinyBS::closeAlert(session, "waitalert")
+        # shinyBS::createAlert(session, "alert", "waitalert", title = "", content = paste0("<div id='zs1'><img src=wait.gif> Drawing map", " .....</div>"), append = FALSE, dismiss = F)
+        # 
+        # RV$currentProductRecord <- configInfo[configInfo$Product == input$wProduct, ]
+        # dps <- str_split(RV$currentProductRecord$Depths, ';')
+        #     
+        #     if(length(dps[[1]]) > 1){RV$isMultiLayer=T}else{RV$isMultiLayer=F}
+        #     
+        #     RV$currentSites <- st_read(paste0(dataStorePath, "/Clay/Sites/Clay.shp"))
+        #     df <- st_drop_geometry(RV$currentSites )
+        # 
+        #     #uri = paste0(OGCserver, '&SERVICE=WMS&VERSION=1.1.1&layer=', layer, '&REQUEST=getlegendgraphic&FORMAT=image/png')
+        #     RV$currentSiteLabels <- lapply(seq(nrow(df)), function(i) {
+        #         paste0( '<li>Site Name : ', df[i, "ID"], '</li>',
+        #                 '<li>0-5cm : ', if(!is.na(df[i, "GSM1"])){format(round(df[i, "GSM1"], 2), nsmall = 2)}else{'NA'}, '</li>',
+        #                 '<li>5-15cm : ',  if(!is.na(df[i, "GSM2"])){format(round(df[i, "GSM2"], 2), nsmall = 2)}else{'NA'}, '</li>',
+        #                 '<li>15-30cm : ',  if(!is.na(df[i, "GSM3"])){format(round(df[i, "GSM3"], 2), nsmall = 2)}else{'NA'}, '</li>',
+        #                 '<li>30-60cm : ',  if(!is.na(df[i, "GSM4"])){format(round(df[i, "GSM4"], 2), nsmall = 2)}else{'NA'}, '</li>',
+        #                 '<li>60-100cm : ',  if(!is.na(df[i, "GSM5"])){format(round(df[i, "GSM5"], 2), nsmall = 2)}else{'NA'}, '</li>',
+        #                 '<li>100-200cm : ',  if(!is.na(df[i, "GSM6"])){format(round(df[i, "GSM6"], 2), nsmall = 2)}else{'NA'}, '</li>'
+        # 
+        #         )
+        #     })
+        #     
+        #     shinyBS::closeAlert(session, "waitalert")
+        #     shinyBS::createAlert(session, "alert", "waitalert", title = "", content = NULL, append = FALSE, dismiss = F)
             
     })
  
@@ -220,18 +253,19 @@ server <- function(input, output, session) {
     })
     
     
+   
+    
+    
     output$wMainMap <- renderLeaflet({
         
-        req( input$wProductDepth)
-        
-        p <- isolate(input$wProduct)
-        t <- isolate(input$wProductType)
-        d <- input$wProductDepth
-        layer <- paste0(p, '_', t, '_', d)
-        
-            leaflet() %>% setView(lng = 134, lat = -26, zoom = 4) %>% addProviderTiles("Esri.WorldImagery", options = providerTileOptions(noWrap = F), group = "Satelite Image") %>%
+        req( input$wProductDepth, input$wProductType, input$wProductDepth)
+
+      layer = getLayer()
+       print(layer)
+            leaflet()  %>% leaflet::removeTiles('wmsl') %>% setView(lng = 134, lat = -26, zoom = 4) %>% addProviderTiles("Esri.WorldImagery", options = providerTileOptions(noWrap = F), group = "Satelite Image") %>%
              addTiles(group = "Map")  %>%
                  addWMSTiles(
+                    layerId = 'wmsl',
                     OGCserver,
                     layers = layer,
                     options = WMSTileOptions(format = "image/png", transparent = T),
@@ -253,22 +287,23 @@ server <- function(input, output, session) {
     
     observe({
         
-    req(input$wProductDepth)
-    
-        p <- isolate(input$wProduct)
-        t <- isolate(input$wProductType)
-    d <- input$wProductDepth
-    layer <- paste0(p, '_', t, '_', d)
-    
-    #print(paste0(dataStorePath, '/', input$wProduct, '/Rasters/', layer, '.tif'))
-    RV$currentRaster <- raster(paste0(dataStorePath, '/',  p, '/Rasters/', layer, '.tif'))
+    req(input$wProductDepth, input$wProductType, input$wProductDepth)
+
+    layer <- getLayer()
+
+    rPath <- paste0(dataStorePath, '/',  input$wProduct, '/Rasters/', layer, '.tif')
+    if(file.exists(rPath)){
+      RV$currentRaster <- raster(rPath)
+    }else{
+      RV$currentRaster <- NULL
+    }
     
     })
     
     
     observe({
         
-        req(input$wProductType, input$wProductDepth)
+        req(input$wProductDepth, input$wProductType, input$wProductDepth)
        
         p <- input$wProduct
         t <- input$wProductType
@@ -283,8 +318,11 @@ server <- function(input, output, session) {
             #     options = WMSTileOptions(format = "image/png", transparent = T),
             #     group = "SLGA"
             # ) 
+        
+        if( !is.null(RV$currentSite)){
             proxy %>% addMarkers( data=RV$currentSites, clusterOptions = markerClusterOptions(), group = 'Sites', label = lapply( RV$currentSiteLabels, HTML) ) 
-            proxy %>%  addWMSLegend(uri = paste0(OGCserver, '&SERVICE=WMS&VERSION=1.1.1&layer=', layer, '&REQUEST=getlegendgraphic&FORMAT=image/png'),  position =  "bottomright")
+        }  
+          proxy %>%  addWMSLegend(uri = paste0(OGCserver, '&SERVICE=WMS&VERSION=1.1.1&layer=', layer, '&REQUEST=getlegendgraphic&FORMAT=image/png'),  position =  "bottomright")
            
            
 
@@ -334,24 +372,27 @@ server <- function(input, output, session) {
         
         
         
-       if(RV$isMultiLayer){
+       if(!is.null(RV$productDepths) ){
            
            RV$currentProductRecord <- configInfo[configInfo$Product == input$wProduct, ]
            dps <- str_split(RV$currentProductRecord$Depths, ';')
            valstr = ''
-           for (i in 1:length(dps[[1]])) {
-               r <- raster(paste0(dataStorePath, '/', input$wProduct, '/Rasters/', input$wProduct,'_',  input$wProductType,'_', dps[[1]][i], '.tif'))
-               ptVal <- extract(r, data.frame(click$lng, click$lat))
-               valstr <- paste0(valstr, '<li>',dps[[1]][i],' : ', format(round(ptVal, 2), nsmall = 2), '</li>')
-               print(i)
+           for (i in 1:length(RV$productDepths)) {
+             rPath <- paste0(dataStorePath, '/', input$wProduct, '/Rasters/', input$wProduct,'_',  input$wProductType,'_', RV$productDepths[i], '.tif')
+             if(file.exists(rPath)) { 
+                r <- raster(rPath)
+                ptVal <- extract(r, data.frame(click$lng, click$lat))
+                valstr <- paste0(valstr, '<li>',dps[[1]][i],' : ', format(round(ptVal, 2), nsmall = 2), '</li>')
+                print(i)
+             }
            }
        }else{
            ptVal <- extract(RV$currentRaster, data.frame(click$lng, click$lat))
            valstr = paste0('<b>', format(round(ptVal, 2), nsmall = 2), '</br>')
-           print('here')
+
        }
         
-        shinyalert("SLGA",  valstr, type = "info", html=T)
+        shinyalert(input$wProduct,  valstr, type = "info", html=T, animation = F)
         
     })
 
