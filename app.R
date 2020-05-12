@@ -103,7 +103,12 @@ ui <-
                      
                      #htmlOutput("debugtext"),
                      
-                     bsAlert("alert"),
+                    
+                     
+                     fluidRow(class = "myRow1", div(style = "valign:top; height:100px;background-color: #F5F5F5;;", bsAlert("alert"))),
+                     
+                     fluidRow(class = "myRow2", div(style = "text-align:center; height:20px;background-color: #F5F5F5;;", uiOutput("wSendTo"))),  
+                     
                      
                      fluidRow(selectInput("wProduct", "Product", choices = NULL)),
                      fluidRow(selectInput("wProductType", "Product Type", choices = NULL)),
@@ -159,6 +164,13 @@ server <- function(input, output, session) {
     RV$currentRaster <- NULL
     RV$productTypes <- NULL
     RV$productDepths <- NULL
+    RV$sendCommentsTo <- NULL
+    
+    output$wSendTo <- renderUI({
+      
+      tags$a("Send Comments", href=paste0("mailto:", RV$currentProductRecord$CommentsTo,"?Subject=TERN Review Comments : ", input$wProduct))
+      
+    })
     
     #########   Productivity Map Combos   ###########################
     observe({
@@ -214,38 +226,40 @@ server <- function(input, output, session) {
     
     
     observe({
-        # req(input$wProduct)
-        # shinyBS::closeAlert(session, "waitalert")
-        # shinyBS::createAlert(session, "alert", "waitalert", title = "", content = paste0("<div id='zs1'><img src=wait.gif> Drawing map", " .....</div>"), append = FALSE, dismiss = F)
-        # 
-        # RV$currentProductRecord <- configInfo[configInfo$Product == input$wProduct, ]
-        # dps <- str_split(RV$currentProductRecord$Depths, ';')
-        #     
-        #     if(length(dps[[1]]) > 1){RV$isMultiLayer=T}else{RV$isMultiLayer=F}
-        #     
-        #     RV$currentSites <- st_read(paste0(dataStorePath, "/Clay/Sites/Clay.shp"))
-        #     df <- st_drop_geometry(RV$currentSites )
-        # 
-        #     #uri = paste0(OGCserver, '&SERVICE=WMS&VERSION=1.1.1&layer=', layer, '&REQUEST=getlegendgraphic&FORMAT=image/png')
-        #     RV$currentSiteLabels <- lapply(seq(nrow(df)), function(i) {
-        #         paste0( '<li>Site Name : ', df[i, "ID"], '</li>',
-        #                 '<li>0-5cm : ', if(!is.na(df[i, "GSM1"])){format(round(df[i, "GSM1"], 2), nsmall = 2)}else{'NA'}, '</li>',
-        #                 '<li>5-15cm : ',  if(!is.na(df[i, "GSM2"])){format(round(df[i, "GSM2"], 2), nsmall = 2)}else{'NA'}, '</li>',
-        #                 '<li>15-30cm : ',  if(!is.na(df[i, "GSM3"])){format(round(df[i, "GSM3"], 2), nsmall = 2)}else{'NA'}, '</li>',
-        #                 '<li>30-60cm : ',  if(!is.na(df[i, "GSM4"])){format(round(df[i, "GSM4"], 2), nsmall = 2)}else{'NA'}, '</li>',
-        #                 '<li>60-100cm : ',  if(!is.na(df[i, "GSM5"])){format(round(df[i, "GSM5"], 2), nsmall = 2)}else{'NA'}, '</li>',
-        #                 '<li>100-200cm : ',  if(!is.na(df[i, "GSM6"])){format(round(df[i, "GSM6"], 2), nsmall = 2)}else{'NA'}, '</li>'
-        # 
-        #         )
-        #     })
-        #     
-        #     shinyBS::closeAlert(session, "waitalert")
-        #     shinyBS::createAlert(session, "alert", "waitalert", title = "", content = NULL, append = FALSE, dismiss = F)
-            
+         req(input$wProduct)
+         shinyBS::closeAlert(session, "waitalert")
+         shinyBS::createAlert(session, "alert", "waitalert", title = "", content = paste0("<div id='zs1'><img src=wait.gif> Drawing map", " .....</div>"), append = FALSE, dismiss = F)
+         
+         RV$currentProductRecord <- configInfo[configInfo$Product == input$wProduct, ]
+         dps <- str_split(RV$currentProductRecord$Depths, ';')
+
+            if(length(dps[[1]]) > 1){RV$isMultiLayer=T}else{RV$isMultiLayer=F}
+
+            RV$currentSites <- st_read(paste0(dataStorePath, "/Clay/Sites/Clay.shp"))
+            df <- st_drop_geometry(RV$currentSites )
+
+            #uri = paste0(OGCserver, '&SERVICE=WMS&VERSION=1.1.1&layer=', layer, '&REQUEST=getlegendgraphic&FORMAT=image/png')
+            RV$currentSiteLabels <- lapply(seq(nrow(df)), function(i) {
+                paste0( '<li>Site Name : ', df[i, "ID"], '</li>',
+                        '<li>0-5cm : ', if(!is.na(df[i, "GSM1"])){format(round(df[i, "GSM1"], 2), nsmall = 2)}else{'NA'}, '</li>',
+                        '<li>5-15cm : ',  if(!is.na(df[i, "GSM2"])){format(round(df[i, "GSM2"], 2), nsmall = 2)}else{'NA'}, '</li>',
+                        '<li>15-30cm : ',  if(!is.na(df[i, "GSM3"])){format(round(df[i, "GSM3"], 2), nsmall = 2)}else{'NA'}, '</li>',
+                        '<li>30-60cm : ',  if(!is.na(df[i, "GSM4"])){format(round(df[i, "GSM4"], 2), nsmall = 2)}else{'NA'}, '</li>',
+                        '<li>60-100cm : ',  if(!is.na(df[i, "GSM5"])){format(round(df[i, "GSM5"], 2), nsmall = 2)}else{'NA'}, '</li>',
+                        '<li>100-200cm : ',  if(!is.na(df[i, "GSM6"])){format(round(df[i, "GSM6"], 2), nsmall = 2)}else{'NA'}, '</li>'
+
+                )
+            })
+
+            shinyBS::closeAlert(session, "waitalert")
+            shinyBS::createAlert(session, "alert", "waitalert", title = "", content = NULL, append = FALSE, dismiss = F)
+
     })
  
     output$pdfStatsview <- renderUI({
-        tags$iframe(style="height:600px; width:100%", src="Stats/2020BebrasParentalConsentForm - James Searle.pdf")
+        #tags$iframe(style="height:600px; width:100%", src="Stats/2020BebrasParentalConsentForm - James Searle.pdf")
+      tags$iframe(style="height:600px; width:100%", src=paste0(RV$currentProductRecord$StatsFile))
+      
     })
     
     output$pdfMethodsview <- renderUI({
@@ -271,13 +285,15 @@ server <- function(input, output, session) {
                     options = WMSTileOptions(format = "image/png", transparent = T),
                     group = "SLGA"
                 )   %>%
-            #proxy %>% addMarkers( data=sites, clusterOptions = markerClusterOptions(), group = 'Sites', label = lapply(labs, HTML) ) 
-           addWMSLegend(uri = paste0(OGCserver, '&SERVICE=WMS&VERSION=1.1.1&layer=', layer, '&REQUEST=getlegendgraphic&FORMAT=image/png'),  position =  "bottomright") %>%
+                      addWMSLegend(uri = paste0(OGCserver, '&SERVICE=WMS&VERSION=1.1.1&layer=', layer, '&REQUEST=getlegendgraphic&FORMAT=image/png'),  position =  "bottomright") %>%
            addLayersControl(
                 baseGroups = c("Satelite Image", "Map"),
                 overlayGroups = c( 'Sites', "SLGA"),
                 options = layersControlOptions(collapsed = FALSE)
             ) %>%
+              
+              addMarkers( data=RV$currentSites, clusterOptions = markerClusterOptions(), group = 'Sites', label = lapply(RV$currentSiteLabels, HTML) )  %>%
+              
                 
                 addFullscreenControl() %>%
                 leafem::addMouseCoordinates() %>%
@@ -304,13 +320,8 @@ server <- function(input, output, session) {
     observe({
         
         req(input$wProductDepth, input$wProductType, input$wProductDepth)
-       
-        p <- input$wProduct
-        t <- input$wProductType
-        d <- input$wProductDepth
-        layer <- paste0(p, '_', t, '_', d)
         
-        
+      layer <- getLayer()
         proxy <- leafletProxy("wMainMap")
             # proxy %>%  addWMSTiles(
             #     OGCserver,
@@ -323,9 +334,6 @@ server <- function(input, output, session) {
             proxy %>% addMarkers( data=RV$currentSites, clusterOptions = markerClusterOptions(), group = 'Sites', label = lapply( RV$currentSiteLabels, HTML) ) 
         }  
           proxy %>%  addWMSLegend(uri = paste0(OGCserver, '&SERVICE=WMS&VERSION=1.1.1&layer=', layer, '&REQUEST=getlegendgraphic&FORMAT=image/png'),  position =  "bottomright")
-           
-           
-
     })
     
     observe({
@@ -367,11 +375,6 @@ server <- function(input, output, session) {
         if(is.null(click))
             return()
 
-        
-        print(click)
-        
-        
-        
        if(!is.null(RV$productDepths) ){
            
            RV$currentProductRecord <- configInfo[configInfo$Product == input$wProduct, ]
@@ -391,13 +394,9 @@ server <- function(input, output, session) {
            valstr = paste0('<b>', format(round(ptVal, 2), nsmall = 2), '</br>')
 
        }
-        
         shinyalert(input$wProduct,  valstr, type = "info", html=T, animation = F)
         
     })
-
-    
-    
 }
 
 # Run the application 
