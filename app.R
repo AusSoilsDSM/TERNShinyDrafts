@@ -113,6 +113,7 @@ ui <-
                      wellPanel( 
                        fluidRow(div(style = "text-align:left;", uiOutput("wStatsLink"))),
                        fluidRow(div(style = "text-align:left;", uiOutput("wMethodLink"))),
+                       fluidRow(div(style = "text-align:left;", uiOutput("wWCS"))),
                        
                      ),
                      
@@ -161,11 +162,19 @@ server <- function(input, output, session) {
     })
     
     output$wStatsLink <- renderUI({
-      tags$a("Show Stats Summary", href=paste0(RV$currentProductRecord$StatsFile), target="_blank")
+      tags$a(paste0("Show ",input$wProduct, " Stats Summary"), href=paste0(RV$currentProductRecord$StatsFile), target="_blank")
     })
     
     output$wMethodLink <- renderUI({
-      tags$a("Show Methods Summary", href=paste0(RV$currentProductRecord$MethodsFile), target="_blank")
+      tags$a(paste0("Show ",input$wProduct, " Methods Summary"), href=paste0(RV$currentProductRecord$MethodsFile), target="_blank")
+    })
+    
+    output$wWCS <- renderUI({
+      
+      res <- '&RESX=0.0008333333333467680612&RESY=0.0008333333333467680612'
+      bbox <- paste0(input$wMainMap_bounds$west, ',', input$wMainMap_bounds$south, ',',input$wMainMap_bounds$east, ',',input$wMainMap_bounds$north )
+      print(input$wMainMap_bounds)
+      tags$a(paste0("Download ",input$wProduct, " Methods Summary"), href=paste0('http://www.asris.csiro.au/arcgis/services/SLGApReview/clay/MapServer/WcsServer?REQUEST=GetCoverage&SERVICE=WCS&VERSION=1.0.0&COVERAGE=1&CRS=EPSG:4326&BBOX=', bbox, '&FORMAT=GeoTIFF', res))
     })
     
     
@@ -322,6 +331,7 @@ server <- function(input, output, session) {
     })
     
     output$downloadData <- downloadHandler(
+     
         filename = function() {
                     fname <- paste0(getLayer(), '.tif')
                     print(fname)
@@ -332,11 +342,18 @@ server <- function(input, output, session) {
             layer <- getLayer()
             print(paste0(dataStorePath, '/',  input$wProduct, '/Rasters/', layer, '.tif'))
             rPath <- paste0(dataStorePath, '/',  input$wProduct, '/Rasters/', layer, '.tif')
-                    createAlert(session, "downloadalert", "downloadingalert", title = "", content = "<img src=wait.gif> Extracting the requested data .....", append = FALSE)
+            
+            if(file.exists(rPath)){
+             
+            }else{
+             
+            }
+                   # createAlert(session, "downloadalert", "downloadingalert", title = "", content = "<img src=wait.gif> Extracting the requested data .....", append = FALSE)
                     file.copy(rPath, file)
                     #writeRaster(RV$currentRaster, filename = file)
-                    closeAlert(session, "downloadingalert")
+                    #closeAlert(session, "downloadingalert")
         })
+    
  
     
     observe({
