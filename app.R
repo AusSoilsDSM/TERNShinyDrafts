@@ -103,14 +103,8 @@ ui <-
                      
                      #htmlOutput("debugtext"),
                      
-                    
-                     
                      fluidRow(div(style = "valign:top; height:50px;background-color: #F5F5F5;", bsAlert("alert"))),
-                     
                      fluidRow(div(style = "text-align:center;", uiOutput("wSendTo"))),
-                     
-                     
-                     
                      fluidRow(selectInput("wProduct", "Product", choices = NULL)),
                      fluidRow(selectInput("wProductType", "Product Type", choices = NULL)),
                      fluidRow(selectInput("wProductDepth", "Product Depth", choices = NULL)),
@@ -127,20 +121,13 @@ ui <-
                          downloadButton('downloadData', 'Download Current RasterData'),
                          bsTooltip(id = "downloadData", title = "Click here to download the currently displayed raster", placement = "top", trigger = "hover"),
                          bsAlert("downloadalert")
-                         
                      )
         ),
         mainPanel(
             tabsetPanel(
-                
-                
-                #tabPanel("Suitability Maps", leafletOutput("mymap", width = "600px", height = "400px"),
                 tabPanel("Map Viewer", 
-                         
                          leafletOutput("wMainMap", height = "700")
                 )
-                         
-                        
                 # ), 
                 # 
                 # tabPanel("Stats report", uiOutput("pdfStatsview")),
@@ -152,8 +139,6 @@ ui <-
         )
     )
     )  
-        
-    
 )
 
 
@@ -280,18 +265,12 @@ server <- function(input, output, session) {
     
     output$wMainMap <- renderLeaflet({
         
-        req( input$wProduct, input$wProductType, input$wProductDepth)
+      req( input$wProduct, input$wProductType, input$wProductDepth)
       srv <-str_replace(OGCserver, 'XXXX',  str_to_lower( input$wProduct))
       
-
       layer = getLayer()
       lnum <- WMSMappings[WMSMappings$Name == layer, ]$LayerNum
       
-      print(layer)
-      print(lnum)
-      print(srv)
-      
-       print(layer)
             leaflet()  %>% leaflet::removeTiles('wmsl') %>% setView(lng = 134, lat = -26, zoom = 4) %>% addProviderTiles("Esri.WorldImagery", options = providerTileOptions(noWrap = F), group = "Satelite Image") %>%
              addTiles(group = "Map")  %>%
                  addWMSTiles(
@@ -301,18 +280,13 @@ server <- function(input, output, session) {
                     options = WMSTileOptions(format = "image/png", transparent = T),
                     group = "SLGA"
                 )   %>%
-                      addWMSLegend(uri = paste0(OGCserver, '&SERVICE=WMS&VERSION=1.1.1&layer=', lnum, '&REQUEST=getlegendgraphic&FORMAT=image/png'),  position =  "bottomright") %>%
+           addWMSLegend(uri = paste0(srv, '?VERSION=1.3.0&layer=', lnum, '&REQUEST=GetLegendGraphic&FORMAT=image/png'),  position =  "bottomright") %>%
            addLayersControl(
                 baseGroups = c("Satelite Image", "Map"),
                 overlayGroups = c( 'Sites', "SLGA"),
                 options = layersControlOptions(collapsed = FALSE)
             ) %>%
-              
-            #  addMarkers( data=RV$currentSites, clusterOptions = markerClusterOptions(), group = 'Sites', label = lapply(RV$currentSiteLabels, HTML) )  %>%
-            
-            #  addMarkers( data=RV$currentSites, clusterOptions = markerClusterOptions(), group = 'Sites', label =  popupTable(breweries91[1, ])) %>%
-             
-                
+
                 addFullscreenControl() %>%
                 leafem::addMouseCoordinates() %>%
                 leaflet.extras::addSearchOSM(options = searchOptions(autoCollapse = T, minLength = 2)) 
@@ -341,49 +315,26 @@ server <- function(input, output, session) {
         
       layer <- getLayer()
         proxy <- leafletProxy("wMainMap")
-            # proxy %>%  addWMSTiles(
-            #     OGCserver,
-            #     layers = layer,
-            #     options = WMSTileOptions(format = "image/png", transparent = T),
-            #     group = "SLGA"
-            # ) 
         
         if( !is.null(RV$currentSites)){
-            #proxy %>% addMarkers( data=RV$currentSites, clusterOptions = markerClusterOptions(), group = 'Sites', label = lapply( RV$currentSiteLabels, HTML) ) 
-          
-          
           proxy %>% addMarkers( data=RV$currentSites, clusterOptions = markerClusterOptions(), group = 'Sites', layerId=paste0(RV$currentSites$ID)) 
-          
-          
         }  
-          proxy %>%  addWMSLegend(uri = paste0(OGCserver, '&SERVICE=WMS&VERSION=1.1.1&layer=', layer, '&REQUEST=getlegendgraphic&FORMAT=image/png'),  position =  "bottomright")
     })
-    
-    observe({
-        
-        req(input$wProduct, input$wProductType, input$wProductDepth)
-        
-        p <- input$wProduct
-        t <- input$wProductType
-        d <- input$wProductDepth
-        layer <- paste0(p, '_', t, '_', d)
-        proxy2 <- leafletProxy("wMainMap")
-               proxy2 %>%  addWMSLegend(uri = paste0(OGCserver, '&SERVICE=WMS&VERSION=1.1.1&layer=', layer, '&REQUEST=getlegendgraphic&FORMAT=image/png'),  position =  "bottomright")
-        
-        
-    })
-    
     
     output$downloadData <- downloadHandler(
         filename = function() {
-                    fname <- paste0(input$wProduct,'_',  input$wProductType,'_', input$wProductDepth, '.tif')
+                    fname <- paste0(getLayer(), '.tif')
+                    print(fname)
             fname
         },
         content = function(file) {
 
-            Rname <- 'E:/ReviewDataStore/Clay/Rasters/Clay_Model-Value_0-5.tif'
+            layer <- getLayer()
+            print(paste0(dataStorePath, '/',  input$wProduct, '/Rasters/', layer, '.tif'))
+            rPath <- paste0(dataStorePath, '/',  input$wProduct, '/Rasters/', layer, '.tif')
                     createAlert(session, "downloadalert", "downloadingalert", title = "", content = "<img src=wait.gif> Extracting the requested data .....", append = FALSE)
-                    file.copy(Rname, file)
+                    file.copy(rPath, file)
+                    #writeRaster(RV$currentRaster, filename = file)
                     closeAlert(session, "downloadingalert")
         })
  
