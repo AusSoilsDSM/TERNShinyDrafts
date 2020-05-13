@@ -105,24 +105,27 @@ ui <-
                      
                     
                      
-                     fluidRow(class = "myRow1", div(style = "valign:top; height:100px;background-color: #F5F5F5;;", bsAlert("alert"))),
+                     fluidRow(div(style = "valign:top; height:50px;background-color: #F5F5F5;", bsAlert("alert"))),
                      
-                     fluidRow(class = "myRow2", div(style = "text-align:center; height:20px;background-color: #F5F5F5;;", uiOutput("wSendTo"))),  
+                     fluidRow(div(style = "text-align:center;", uiOutput("wSendTo"))),
+                     
                      
                      
                      fluidRow(selectInput("wProduct", "Product", choices = NULL)),
                      fluidRow(selectInput("wProductType", "Product Type", choices = NULL)),
                      fluidRow(selectInput("wProductDepth", "Product Depth", choices = NULL)),
                      
-                    
+                     HTML('<b>Info</b>'),
+                     wellPanel( 
+                       fluidRow(div(style = "text-align:left;", uiOutput("wStatsLink"))),
+                       fluidRow(div(style = "text-align:left;", uiOutput("wMethodLink"))),
+                       
+                     ),
+                     
                      HTML('<br><b>Data Downloads</b>'),
                      wellPanel( 
-                         # selectInput("dataset", "Choose product to download:", choices = c("")),
-                         # bsTooltip(id = "dataset", title = "Select the type of data set you want to download", placement = "top", trigger = "hover"),
-                         # 
                          downloadButton('downloadData', 'Download Current RasterData'),
                          bsTooltip(id = "downloadData", title = "Click here to download the currently displayed raster", placement = "top", trigger = "hover"),
-                         
                          bsAlert("downloadalert")
                          
                      )
@@ -135,14 +138,15 @@ ui <-
                 tabPanel("Map Viewer", 
                          
                          leafletOutput("wMainMap", height = "700")
+                )
                          
                         
-                ), 
-                
-                tabPanel("Stats report", uiOutput("pdfStatsview")),
-                
-                tabPanel("Methodology", uiOutput("pdfMethodsview"))
-                
+                # ), 
+                # 
+                # tabPanel("Stats report", uiOutput("pdfStatsview")),
+                # 
+                # tabPanel("Methodology", uiOutput("pdfMethodsview"))
+                # 
                 
             )
         )
@@ -161,16 +165,24 @@ server <- function(input, output, session) {
     RV$currentProductRecord <- NULL
     RV$currentSites <- NULL
     RV$currentSiteLabels <- NULL
+    RV$currentSiteData<- NULL
     RV$currentRaster <- NULL
     RV$productTypes <- NULL
     RV$productDepths <- NULL
     RV$sendCommentsTo <- NULL
     
     output$wSendTo <- renderUI({
-      
       tags$a("Send Comments", href=paste0("mailto:", RV$currentProductRecord$CommentsTo,"?Subject=TERN Review Comments : ", input$wProduct))
-      
     })
+    
+    output$wStatsLink <- renderUI({
+      tags$a("Show Stats Summary", href=paste0(RV$currentProductRecord$StatsFile), target="_blank")
+    })
+    
+    output$wMethodLink <- renderUI({
+      tags$a("Show Methods Summary", href=paste0(RV$currentProductRecord$MethodsFile), target="_blank")
+    })
+    
     
     #########   Productivity Map Combos   ###########################
     observe({
@@ -178,10 +190,6 @@ server <- function(input, output, session) {
         req(configInfo)
             products <- as.character(configInfo$Product)
             updateSelectInput(session, "wProduct", choices =  products)
-            
-            
-            
-           
     })
     
     observe({
@@ -236,20 +244,20 @@ server <- function(input, output, session) {
             if(length(dps[[1]]) > 1){RV$isMultiLayer=T}else{RV$isMultiLayer=F}
 
             RV$currentSites <- st_read(paste0(dataStorePath, "/Clay/Sites/Clay.shp"))
-            df <- st_drop_geometry(RV$currentSites )
+            #df <- st_drop_geometry(RV$currentSites )
 
-            #uri = paste0(OGCserver, '&SERVICE=WMS&VERSION=1.1.1&layer=', layer, '&REQUEST=getlegendgraphic&FORMAT=image/png')
-            RV$currentSiteLabels <- lapply(seq(nrow(df)), function(i) {
-                paste0( '<li>Site Name : ', df[i, "ID"], '</li>',
-                        '<li>0-5cm : ', if(!is.na(df[i, "GSM1"])){format(round(df[i, "GSM1"], 2), nsmall = 2)}else{'NA'}, '</li>',
-                        '<li>5-15cm : ',  if(!is.na(df[i, "GSM2"])){format(round(df[i, "GSM2"], 2), nsmall = 2)}else{'NA'}, '</li>',
-                        '<li>15-30cm : ',  if(!is.na(df[i, "GSM3"])){format(round(df[i, "GSM3"], 2), nsmall = 2)}else{'NA'}, '</li>',
-                        '<li>30-60cm : ',  if(!is.na(df[i, "GSM4"])){format(round(df[i, "GSM4"], 2), nsmall = 2)}else{'NA'}, '</li>',
-                        '<li>60-100cm : ',  if(!is.na(df[i, "GSM5"])){format(round(df[i, "GSM5"], 2), nsmall = 2)}else{'NA'}, '</li>',
-                        '<li>100-200cm : ',  if(!is.na(df[i, "GSM6"])){format(round(df[i, "GSM6"], 2), nsmall = 2)}else{'NA'}, '</li>'
-
-                )
-            })
+            # #uri = paste0(OGCserver, '&SERVICE=WMS&VERSION=1.1.1&layer=', layer, '&REQUEST=getlegendgraphic&FORMAT=image/png')
+            # RV$currentSiteLabels <- lapply(seq(nrow(df)), function(i) {
+            #     paste0( '<li>Site Name : ', df[i, "ID"], '</li>',
+            #             '<li>0-5cm : ', if(!is.na(df[i, "GSM1"])){format(round(df[i, "GSM1"], 2), nsmall = 2)}else{'NA'}, '</li>',
+            #             '<li>5-15cm : ',  if(!is.na(df[i, "GSM2"])){format(round(df[i, "GSM2"], 2), nsmall = 2)}else{'NA'}, '</li>',
+            #             '<li>15-30cm : ',  if(!is.na(df[i, "GSM3"])){format(round(df[i, "GSM3"], 2), nsmall = 2)}else{'NA'}, '</li>',
+            #             '<li>30-60cm : ',  if(!is.na(df[i, "GSM4"])){format(round(df[i, "GSM4"], 2), nsmall = 2)}else{'NA'}, '</li>',
+            #             '<li>60-100cm : ',  if(!is.na(df[i, "GSM5"])){format(round(df[i, "GSM5"], 2), nsmall = 2)}else{'NA'}, '</li>',
+            #             '<li>100-200cm : ',  if(!is.na(df[i, "GSM6"])){format(round(df[i, "GSM6"], 2), nsmall = 2)}else{'NA'}, '</li>'
+            # 
+            #     )
+            # })
 
             shinyBS::closeAlert(session, "waitalert")
             shinyBS::createAlert(session, "alert", "waitalert", title = "", content = NULL, append = FALSE, dismiss = F)
@@ -272,28 +280,38 @@ server <- function(input, output, session) {
     
     output$wMainMap <- renderLeaflet({
         
-        req( input$wProductDepth, input$wProductType, input$wProductDepth)
+        req( input$wProduct, input$wProductType, input$wProductDepth)
+      srv <-str_replace(OGCserver, 'XXXX',  str_to_lower( input$wProduct))
+      
 
       layer = getLayer()
+      lnum <- WMSMappings[WMSMappings$Name == layer, ]$LayerNum
+      
+      print(layer)
+      print(lnum)
+      print(srv)
+      
        print(layer)
             leaflet()  %>% leaflet::removeTiles('wmsl') %>% setView(lng = 134, lat = -26, zoom = 4) %>% addProviderTiles("Esri.WorldImagery", options = providerTileOptions(noWrap = F), group = "Satelite Image") %>%
              addTiles(group = "Map")  %>%
                  addWMSTiles(
                     layerId = 'wmsl',
-                    OGCserver,
-                    layers = layer,
+                    baseUrl = srv,
+                    layers = lnum,
                     options = WMSTileOptions(format = "image/png", transparent = T),
                     group = "SLGA"
                 )   %>%
-                      addWMSLegend(uri = paste0(OGCserver, '&SERVICE=WMS&VERSION=1.1.1&layer=', layer, '&REQUEST=getlegendgraphic&FORMAT=image/png'),  position =  "bottomright") %>%
+                      addWMSLegend(uri = paste0(OGCserver, '&SERVICE=WMS&VERSION=1.1.1&layer=', lnum, '&REQUEST=getlegendgraphic&FORMAT=image/png'),  position =  "bottomright") %>%
            addLayersControl(
                 baseGroups = c("Satelite Image", "Map"),
                 overlayGroups = c( 'Sites', "SLGA"),
                 options = layersControlOptions(collapsed = FALSE)
             ) %>%
               
-              addMarkers( data=RV$currentSites, clusterOptions = markerClusterOptions(), group = 'Sites', label = lapply(RV$currentSiteLabels, HTML) )  %>%
-              
+            #  addMarkers( data=RV$currentSites, clusterOptions = markerClusterOptions(), group = 'Sites', label = lapply(RV$currentSiteLabels, HTML) )  %>%
+            
+            #  addMarkers( data=RV$currentSites, clusterOptions = markerClusterOptions(), group = 'Sites', label =  popupTable(breweries91[1, ])) %>%
+             
                 
                 addFullscreenControl() %>%
                 leafem::addMouseCoordinates() %>%
@@ -330,8 +348,13 @@ server <- function(input, output, session) {
             #     group = "SLGA"
             # ) 
         
-        if( !is.null(RV$currentSite)){
-            proxy %>% addMarkers( data=RV$currentSites, clusterOptions = markerClusterOptions(), group = 'Sites', label = lapply( RV$currentSiteLabels, HTML) ) 
+        if( !is.null(RV$currentSites)){
+            #proxy %>% addMarkers( data=RV$currentSites, clusterOptions = markerClusterOptions(), group = 'Sites', label = lapply( RV$currentSiteLabels, HTML) ) 
+          
+          
+          proxy %>% addMarkers( data=RV$currentSites, clusterOptions = markerClusterOptions(), group = 'Sites', layerId=paste0(RV$currentSites$ID)) 
+          
+          
         }  
           proxy %>%  addWMSLegend(uri = paste0(OGCserver, '&SERVICE=WMS&VERSION=1.1.1&layer=', layer, '&REQUEST=getlegendgraphic&FORMAT=image/png'),  position =  "bottomright")
     })
@@ -349,8 +372,6 @@ server <- function(input, output, session) {
         
         
     })
-    
-    
     
     
     output$downloadData <- downloadHandler(
@@ -397,6 +418,33 @@ server <- function(input, output, session) {
         shinyalert(input$wProduct,  valstr, type = "info", html=T, animation = F)
         
     })
+    
+    
+    observe({
+
+      req(RV$currentRaster)
+
+      click<-input$wMainMap_marker_click
+      if(is.null(click))
+        return()
+      
+      print(click)
+      
+      df <-  st_drop_geometry( RV$currentSites[RV$currentSites$ID==click$id, ] )
+     
+     lab <- paste0( '<Table style="border:0px solid black;margin-left:auto;margin-right:auto;">
+                    <tr><td>Site Name</td><td>', df[1, "ID"], '</td></td>',
+                    '<tr><td>S0-5cm</td><td>', if(!is.na(df[1, "GSM1"])){format(round(df[1, "GSM1"], 2), nsmall = 2)}else{'NA'}, '</td></td>',
+                    '<tr><td>S5-15cm</td><td>',  if(!is.na(df[1, "GSM2"])){format(round(df[1, "GSM2"], 2), nsmall = 2)}else{'NA'}, '</td></td>',
+                    '<tr><td>S15-30cm</td><td>',  if(!is.na(df[1, "GSM3"])){format(round(df[1, "GSM3"], 2), nsmall = 2)}else{'NA'}, '</td></td>',
+                    '<tr><td>S30-60cm</td><td>',  if(!is.na(df[1, "GSM4"])){format(round(df[1, "GSM4"], 2), nsmall = 2)}else{'NA'}, '</td></td>',
+                    '<tr><td>S60-100cm</td><td>',  if(!is.na(df[1, "GSM5"])){format(round(df[1, "GSM5"], 2), nsmall = 2)}else{'NA'}, '</td></td>',
+                    '<tr><td>S100-200cm</td><td>',  if(!is.na(df[1, "GSM6"])){format(round(df[1, "GSM6"], 2), nsmall = 2)}else{'NA'}, '</td></td></table>')
+      
+      shinyalert(paste0('Observed Data : ', input$wProduct),  lab, type = "info", html=T, animation = F)
+    })
+    
+  
 }
 
 # Run the application 
