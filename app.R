@@ -112,16 +112,15 @@ ui <-
                      HTML('<b>Info</b>'),
                      wellPanel( 
                        fluidRow(div(style = "text-align:left;", uiOutput("wStatsLink"))),
-                       fluidRow(div(style = "text-align:left;", uiOutput("wMethodLink"))),
-                       fluidRow(div(style = "text-align:left;", uiOutput("wWCS"))),
-                       
+                       fluidRow(div(style = "text-align:left;", uiOutput("wMethodLink")))
                      ),
                      
                      HTML('<br><b>Data Downloads</b>'),
                      wellPanel( 
-                         downloadButton('downloadData', 'Download Current RasterData'),
-                         bsTooltip(id = "downloadData", title = "Click here to download the currently displayed raster", placement = "top", trigger = "hover"),
-                         bsAlert("downloadalert")
+                         fluidRow(downloadLink('downloadData', 'Download Entire DataSet')),
+                         fluidRow(div(style = "text-align:left;", uiOutput("wWCS"))),
+                         #bsTooltip(id = "downloadData", title = "Click here to download the currently displayed raster", placement = "top", trigger = "hover"),
+                        # bsAlert("downloadalert")
                      )
         ),
         mainPanel(
@@ -171,11 +170,24 @@ server <- function(input, output, session) {
     
     output$wWCS <- renderUI({
       
-      res <- '&RESX=0.0008333333333467680612&RESY=0.0008333333333467680612'
+      
+      pres <- 0.0008333333333467680612
+      rows <- (input$wMainMap_bounds$north - input$wMainMap_bounds$south) / pres
+      cols <- (input$wMainMap_bounds$east - input$wMainMap_bounds$west) / pres
+      pixels <- rows*cols
+      
+      if(pixels < 30000000){
+      res <- paste0('&RESX=', pres, '&RESY=', pres)
       bbox <- paste0(input$wMainMap_bounds$west, ',', input$wMainMap_bounds$south, ',',input$wMainMap_bounds$east, ',',input$wMainMap_bounds$north )
       print(input$wMainMap_bounds)
-      tags$a(paste0("Download ",input$wProduct, " Methods Summary"), href=paste0('http://www.asris.csiro.au/arcgis/services/SLGApReview/clay/MapServer/WcsServer?REQUEST=GetCoverage&SERVICE=WCS&VERSION=1.0.0&COVERAGE=1&CRS=EPSG:4326&BBOX=', bbox, '&FORMAT=GeoTIFF', res))
-    })
+      tags$a(paste0("Download ",input$wProduct, " Current Extent"), href=paste0('http://www.asris.csiro.au/arcgis/services/SLGApReview/clay/MapServer/WcsServer?REQUEST=GetCoverage&SERVICE=WCS&VERSION=1.0.0&COVERAGE=1&CRS=EPSG:4326&BBOX=', bbox, '&FORMAT=GeoTIFF', res))
+      }else{
+        #tags$html(paste0("Download ",input$wProduct, " Current Extent"))
+        tags$html("")
+        
+      }
+      
+       })
     
     
     #########   Productivity Map Combos   ###########################
@@ -275,60 +287,82 @@ server <- function(input, output, session) {
     output$wMainMap <- renderLeaflet({
         
       req( input$wProduct, input$wProductType, input$wProductDepth)
-      srv <-str_replace(OGCserver, 'XXXX',  str_to_lower( input$wProduct))
-      
-      layer = getLayer()
-      lnum <- WMSMappings[WMSMappings$Name == layer, ]$LayerNum
-      
-            leaflet()  %>% leaflet::removeTiles('wmsl') %>% setView(lng = 134, lat = -26, zoom = 4) %>% addProviderTiles("Esri.WorldImagery", options = providerTileOptions(noWrap = F), group = "Satelite Image") %>%
-             addTiles(group = "Map")  %>%
-                 addWMSTiles(
-                    layerId = 'wmsl',
-                    baseUrl = srv,
-                    layers = lnum,
-                    options = WMSTileOptions(format = "image/png", transparent = T),
-                    group = "SLGA"
-                )   %>%
-           addWMSLegend(uri = paste0(srv, '?VERSION=1.3.0&layer=', lnum, '&REQUEST=GetLegendGraphic&FORMAT=image/png'),  position =  "bottomright") %>%
-           addLayersControl(
-                baseGroups = c("Satelite Image", "Map"),
-                overlayGroups = c( 'Sites', "SLGA"),
-                options = layersControlOptions(collapsed = FALSE)
-            ) %>%
-
+ 
+            leaflet()  %>% setView(lng = 134, lat = -26, zoom = 4) %>% addProviderTiles("Esri.WorldImagery", options = providerTileOptions(noWrap = F), group = "Satelite Image") %>%
+               
                 addFullscreenControl() %>%
                 leafem::addMouseCoordinates() %>%
-                leaflet.extras::addSearchOSM(options = searchOptions(autoCollapse = T, minLength = 2)) 
+                leaflet.extras::addSearchOSM(options = searchOptions(autoCollapse = T, minLength = 2)) %>% 
+                addMarkers( data=RV$currentSites, clusterOptions = markerClusterOptions(), group = 'Sites', layerId=paste0(RV$currentSites$ID)) %>% 
+              addLayersControl(
+              baseGroups = c("Satelite Image", "Map"),
+              overlayGroups = c( 'Sites',"SLGA_V1", "SLGA_V2"),
+              options = layersControlOptions(collapsed = FALSE)
+            ) 
 })
     
     
-    observe({
-        
-    req(input$wProductDepth, input$wProductType, input$wProductDepth)
-
-    layer <- getLayer()
-
-    rPath <- paste0(dataStorePath, '/',  input$wProduct, '/Rasters/', layer, '.tif')
-    if(file.exists(rPath)){
-      RV$currentRaster <- raster(rPath)
-    }else{
-      RV$currentRaster <- NULL
-    }
-    
-    })
-    
+   
     
     observe({
         
         req(input$wProductDepth, input$wProductType, input$wProductDepth)
-        
-      layer <- getLayer()
+      
+      srv <-str_replace(OGCserver, 'XXXX',  str_to_lower( input$wProduct))
+      V1Server <-str_replace(V1Server, 'XXXX',  RV$currentProductRecord$V1Code)
+      
+      layer = getLayer()
+      rec <- WMSMappings[WMSMappings$Name == layer, ]
+      lnum <- rec$LayerNum
+      V1L <- rec$V1
+      
+     
         proxy <- leafletProxy("wMainMap")
         
-        if( !is.null(RV$currentSites)){
-          proxy %>% addMarkers( data=RV$currentSites, clusterOptions = markerClusterOptions(), group = 'Sites', layerId=paste0(RV$currentSites$ID)) 
-        }  
+        # if( !is.null(RV$currentSites)){
+        #   proxy %>% addMarkers( data=RV$currentSites, clusterOptions = markerClusterOptions(), group = 'Sites', layerId=paste0(RV$currentSites$ID)) 
+        # }  
+        
+        proxy %>%  leaflet::removeTiles('wmsl')
+        proxy %>% addTiles(group = "Map")
+        proxy %>% addWMSTiles(
+            layerId = 'wmsl',
+            baseUrl = srv,
+            layers = lnum,
+            options = WMSTileOptions(format = "image/png", transparent = T),
+            group = "SLGA_V2",
+            attribution = "TERN"
+          ) 
+        
+        proxy %>% addWMSTiles(
+            layerId = 'wmsl2',
+            baseUrl = V1Server,
+            layers = V1L,
+            options = WMSTileOptions(format = "image/png", transparent = T),
+            group = "SLGA_V1",
+            attribution = "TERN"
+          )
+         # proxy %>% addWMSLegend(uri = paste0(srv, '?VERSION=1.3.0&layer=', lnum, '&REQUEST=GetLegendGraphic&FORMAT=image/png'),  position =  "bottomright") %>%
+         
+        proxy %>% hideGroup("SLGA_V1")
+          
     })
+    
+    observe({
+      
+      req(input$wProductDepth, input$wProductType, input$wProductDepth)
+      
+      layer <- getLayer()
+      
+      rPath <- paste0(dataStorePath, '/',  input$wProduct, '/Rasters/', layer, '.tif')
+      if(file.exists(rPath)){
+        RV$currentRaster <- raster(rPath)
+      }else{
+        RV$currentRaster <- NULL
+      }
+      
+    })
+    
     
     output$downloadData <- downloadHandler(
      

@@ -4,10 +4,12 @@ if(machineName == 'soils-discovery'){
   dataStorePath <- '/OSM/CBR/LW_SOILDATAREPO/work/TERNLandscapes/ReviewDataStore'
   #OGCserver = "http://ternsoil2:8080/cgi-bin/mapserv.exe?map=C:/ms4w/SLGA/SLGA.map"
   OGCserver =  "https://www.asris.csiro.au/arcgis/services/SLGApReview/XXXX/MapServer/WMSServer"
+  V1Server = "http://www.asris.csiro.au/arcgis/services/TERN/XXXX_ACLEP_AU_NAT_C/MapServer/WMSServer"
 }else{
   dataStorePath <- 'E:/ReviewDataStore'
   #OGCserver = "http://localhost/cgi-bin/mapserv.exe?map=C:/ms4w/SLGA/SLGA.map"
   OGCserver =  "https://www.asris.csiro.au/arcgis/services/SLGApReview/XXXX/MapServer/WMSServer"
+  V1Server = "http://www.asris.csiro.au/arcgis/services/TERN/XXXX_ACLEP_AU_NAT_C/MapServer/WMSServer"
 }
 
 adminEmail <- 'ross.searle@csiro.au'
