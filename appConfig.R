@@ -17,5 +17,5 @@ adminName <- 'Ross Searle'
 
 mapExtent = '112.9995833330000039 -43.9995833340000075 153.9995833339999933 -9.9995833330000004'
 
-configInfo <- read.csv(paste0(dataStorePath, '/DataStoreConfig.csv'), stringsAsFactors = F)
-WMSMappings <- read.csv(paste0(dataStorePath, '/WMSmappings.csv'), stringsAsFactors = F)
+configInfo <- read.csv(paste0( 'Configs/DataStoreConfig.csv'), stringsAsFactors = F)
+WMSMappings <- read.csv(paste0( 'Configs/WMSmappings.csv'), stringsAsFactors = F)

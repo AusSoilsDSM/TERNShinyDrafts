@@ -1,0 +1,7 @@
+Product,Code,Depths,Units,Style,Types,CommentsTo,StatsFile,MethodsFile,V1Code
+Clay,CLY,0-5;5-15;15-30;30-60;60-100;100-200,Proportion,Browns,Modelled-Value;Lower-CI;Upper-CI,Brendan.Malone@csiro.au;Ross.Searle@csiro.au,https://aussoilsdsm.esoil.io/covariate-data/covariate-data-pca,https://aussoilsdsm.esoil.io/covariate-data/covariate-data-pca,CLY
+Sand,SND,0-5;5-15;15-30;30-60;60-100;100-200,Proportion,Browns,Modelled-Value;Lower-CI;Upper-CI,Brendan.Malone@csiro.au;Ross.Searle@csiro.au,,,SND
+Silt,SLT,0-5;5-15;15-30;30-60;60-100;100-200,Proportion,Browns,Modelled-Value;Lower-CI;Upper-CI,Brendan.Malone@csiro.au;Ross.Searle@csiro.au,,,SLT
+SoilDepth,DES,,cm,Greens,Modelled-Value;Lower-CI;Upper-CI,Brendan.Malone@csiro.au;Ross.Searle@csiro.au,,,DES
+ASCOrder,ASC,,None,ASC,,Ross.Searle@csiro.au,,,
+ASCSubOrder,ASCSub,,None,ASC,,Ross.Searle@csiro.au,,,
