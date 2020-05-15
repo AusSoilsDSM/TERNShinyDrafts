@@ -19,6 +19,8 @@ library(shinycssloaders)
 library(shinymanager)
 library(shinyalert)
 library(shinybusy)
+library(readr)
+
 
 source('appConfig.R')
 
@@ -49,7 +51,7 @@ credentials <- data.frame(
 )
 
 
-configInfo <- read.csv(paste0(dataStorePath, '/DataStoreConfig.csv'), stringsAsFactors = F)
+
 
 
 ui <- 
@@ -101,8 +103,6 @@ ui <-
     sidebarLayout(
         sidebarPanel(width=2, HTML('The information contained in this site is only for the use of the TERN Landscapes team. <b>Do not distribute information outside of the project team.</b><br><br>'),
                      
-                     #htmlOutput("debugtext"),
-                     
                      fluidRow(div(style = "valign:top; height:50px;background-color: #F5F5F5;", bsAlert("alert"))),
                      fluidRow(div(style = "text-align:center;", uiOutput("wSendTo"))),
                      fluidRow(selectInput("wProduct", "Product", choices = NULL)),
@@ -112,30 +112,25 @@ ui <-
                      HTML('<b>Info</b>'),
                      wellPanel( 
                        fluidRow(div(style = "text-align:left;", uiOutput("wStatsLink"))),
-                       fluidRow(div(style = "text-align:left;", uiOutput("wMethodLink"))),
-                       fluidRow(div(style = "text-align:left;", uiOutput("wWCS"))),
-                       
+                       fluidRow(div(style = "text-align:left;", uiOutput("wMethodLink")))
                      ),
                      
                      HTML('<br><b>Data Downloads</b>'),
                      wellPanel( 
-                         downloadButton('downloadData', 'Download Current RasterData'),
-                         bsTooltip(id = "downloadData", title = "Click here to download the currently displayed raster", placement = "top", trigger = "hover"),
-                         bsAlert("downloadalert")
+                         fluidRow(downloadLink('downloadData', 'Download Entire DataSet')),
+                         fluidRow(div(style = "text-align:left;", uiOutput("wWCS"))),
                      )
         ),
         mainPanel(
             tabsetPanel(
                 tabPanel("Map Viewer", 
                          leafletOutput("wMainMap", height = "700")
-                )
-                # ), 
-                # 
-                # tabPanel("Stats report", uiOutput("pdfStatsview")),
-                # 
-                # tabPanel("Methodology", uiOutput("pdfMethodsview"))
-                # 
-                
+                ),
+                 tabPanel("Help", 
+                          #div(style = "valign:top; height:1000px;background-color: #F5F5F5; overflow: scroll height: 90vh; overflow-y: auto;",  includeHTML("Help.html"))
+                          div(style = "valign:top; height: 90vh; overflow-y: auto;",  includeHTML("Help.html"))
+               
+                 )
             )
         )
     )
@@ -157,24 +152,55 @@ server <- function(input, output, session) {
     RV$productDepths <- NULL
     RV$sendCommentsTo <- NULL
     
+    
+    output$wHelp <- renderUI({
+      input$wProduct
+     htm <- read_file('Help.html')
+    # print(htm)
+      htm
+    })
+    
     output$wSendTo <- renderUI({
       tags$a("Send Comments", href=paste0("mailto:", RV$currentProductRecord$CommentsTo,"?Subject=TERN Review Comments : ", input$wProduct))
     })
     
     output$wStatsLink <- renderUI({
+      req(RV$currentProductRecord)
+      if(RV$currentProductRecord$StatsFile != ''){
       tags$a(paste0("Show ",input$wProduct, " Stats Summary"), href=paste0(RV$currentProductRecord$StatsFile), target="_blank")
+      }else{
+        tags$html("Stats Info Not Available")
+      }
     })
     
+    
     output$wMethodLink <- renderUI({
-      tags$a(paste0("Show ",input$wProduct, " Methods Summary"), href=paste0(RV$currentProductRecord$MethodsFile), target="_blank")
+      req(RV$currentProductRecord)
+      if(RV$currentProductRecord$MethodsFile != ''){
+        tags$a(paste0("Show ",input$wProduct, " Methods Summary"), href=paste0(RV$currentProductRecord$MethodsFile), target="_blank")
+      }else{
+        tags$html("Methods Info Not Available")
+      }
+    
     })
     
     output$wWCS <- renderUI({
       
-      res <- '&RESX=0.0008333333333467680612&RESY=0.0008333333333467680612'
+      req(RV$currentProductRecord, input$wMainMap_bounds)
+      
+      pres <- 0.0008333333333467680612
+      rows <- (input$wMainMap_bounds$north - input$wMainMap_bounds$south) / pres
+      cols <- (input$wMainMap_bounds$east - input$wMainMap_bounds$west) / pres
+      pixels <- rows*cols
+      
+      if(pixels < 30000000){
+      res <- paste0('&RESX=', pres, '&RESY=', pres)
       bbox <- paste0(input$wMainMap_bounds$west, ',', input$wMainMap_bounds$south, ',',input$wMainMap_bounds$east, ',',input$wMainMap_bounds$north )
       print(input$wMainMap_bounds)
-      tags$a(paste0("Download ",input$wProduct, " Methods Summary"), href=paste0('http://www.asris.csiro.au/arcgis/services/SLGApReview/clay/MapServer/WcsServer?REQUEST=GetCoverage&SERVICE=WCS&VERSION=1.0.0&COVERAGE=1&CRS=EPSG:4326&BBOX=', bbox, '&FORMAT=GeoTIFF', res))
+      tags$a(paste0("Download ",input$wProduct, " Current Extent"), href=paste0('http://www.asris.csiro.au/arcgis/services/SLGApReview/clay/MapServer/WcsServer?REQUEST=GetCoverage&SERVICE=WCS&VERSION=1.0.0&COVERAGE=1&CRS=EPSG:4326&BBOX=', bbox, '&FORMAT=GeoTIFF', res))
+      }else{
+        tags$html("")
+      }
     })
     
     
@@ -191,6 +217,7 @@ server <- function(input, output, session) {
         
             updateSelectInput(session, "wProductDepth", choices =  NULL)
             RV$currentProductRecord <- configInfo[configInfo$Product == input$wProduct, ]
+            print(RV$currentProductRecord)
             
             dps <- str_split(RV$currentProductRecord$Depths, ';')
             if(length(dps[[1]]) > 0 & dps != ''){
@@ -236,37 +263,22 @@ server <- function(input, output, session) {
          dps <- str_split(RV$currentProductRecord$Depths, ';')
 
             if(length(dps[[1]]) > 1){RV$isMultiLayer=T}else{RV$isMultiLayer=F}
+         
 
-            RV$currentSites <- st_read(paste0(dataStorePath, "/Clay/Sites/Clay.shp"))
-            #df <- st_drop_geometry(RV$currentSites )
 
-            # #uri = paste0(OGCserver, '&SERVICE=WMS&VERSION=1.1.1&layer=', layer, '&REQUEST=getlegendgraphic&FORMAT=image/png')
-            # RV$currentSiteLabels <- lapply(seq(nrow(df)), function(i) {
-            #     paste0( '<li>Site Name : ', df[i, "ID"], '</li>',
-            #             '<li>0-5cm : ', if(!is.na(df[i, "GSM1"])){format(round(df[i, "GSM1"], 2), nsmall = 2)}else{'NA'}, '</li>',
-            #             '<li>5-15cm : ',  if(!is.na(df[i, "GSM2"])){format(round(df[i, "GSM2"], 2), nsmall = 2)}else{'NA'}, '</li>',
-            #             '<li>15-30cm : ',  if(!is.na(df[i, "GSM3"])){format(round(df[i, "GSM3"], 2), nsmall = 2)}else{'NA'}, '</li>',
-            #             '<li>30-60cm : ',  if(!is.na(df[i, "GSM4"])){format(round(df[i, "GSM4"], 2), nsmall = 2)}else{'NA'}, '</li>',
-            #             '<li>60-100cm : ',  if(!is.na(df[i, "GSM5"])){format(round(df[i, "GSM5"], 2), nsmall = 2)}else{'NA'}, '</li>',
-            #             '<li>100-200cm : ',  if(!is.na(df[i, "GSM6"])){format(round(df[i, "GSM6"], 2), nsmall = 2)}else{'NA'}, '</li>'
-            # 
-            #     )
-            # })
+            sp <- paste0(dataStorePath, "/", input$wProduct, "/Sites/", input$wProduct, ".shp")
+            if(file.exists(sp)){
+              RV$currentSites = st_read(paste0(dataStorePath, "/", input$wProduct, "/Sites/", input$wProduct, ".shp"))
+            }else{
+              RV$currentSites = NULL
+            }
 
             shinyBS::closeAlert(session, "waitalert")
             shinyBS::createAlert(session, "alert", "waitalert", title = "", content = NULL, append = FALSE, dismiss = F)
 
     })
  
-    output$pdfStatsview <- renderUI({
-        #tags$iframe(style="height:600px; width:100%", src="Stats/2020BebrasParentalConsentForm - James Searle.pdf")
-      tags$iframe(style="height:600px; width:100%", src=paste0(RV$currentProductRecord$StatsFile))
-      
-    })
     
-    output$pdfMethodsview <- renderUI({
-        tags$iframe(style="height:600px; width:100%", src="Stats/2020BebrasParentalConsentForm - James Searle.pdf")
-    })
     
     
    
@@ -276,80 +288,117 @@ server <- function(input, output, session) {
         
       req( input$wProduct, input$wProductType, input$wProductDepth)
       srv <-str_replace(OGCserver, 'XXXX',  str_to_lower( input$wProduct))
+      V1Server <-str_replace(V1Server, 'XXXX',  RV$currentProductRecord$V1Code)
       
       layer = getLayer()
-      lnum <- WMSMappings[WMSMappings$Name == layer, ]$LayerNum
+      rec <- WMSMappings[WMSMappings$Name == layer, ]
+      lnum <- rec$LayerNum
       
-            leaflet()  %>% leaflet::removeTiles('wmsl') %>% setView(lng = 134, lat = -26, zoom = 4) %>% addProviderTiles("Esri.WorldImagery", options = providerTileOptions(noWrap = F), group = "Satelite Image") %>%
-             addTiles(group = "Map")  %>%
-                 addWMSTiles(
-                    layerId = 'wmsl',
-                    baseUrl = srv,
-                    layers = lnum,
-                    options = WMSTileOptions(format = "image/png", transparent = T),
-                    group = "SLGA"
-                )   %>%
-           addWMSLegend(uri = paste0(srv, '?VERSION=1.3.0&layer=', lnum, '&REQUEST=GetLegendGraphic&FORMAT=image/png'),  position =  "bottomright") %>%
-           addLayersControl(
-                baseGroups = c("Satelite Image", "Map"),
-                overlayGroups = c( 'Sites', "SLGA"),
-                options = layersControlOptions(collapsed = FALSE)
-            ) %>%
-
+     if( RV$currentProductRecord$V1Code != '' ){
+       grps <- c( 'Sites',"SLGA_V1", "SLGA_V2")
+     }else{
+       grps <- c( 'Sites', "SLGA_V2")
+     }
+            leaflet()  %>% setView(lng = 134, lat = -26, zoom = 4) %>% addProviderTiles("Esri.WorldImagery", options = providerTileOptions(noWrap = F), group = "Satelite Image") %>%
+               
                 addFullscreenControl() %>%
                 leafem::addMouseCoordinates() %>%
-                leaflet.extras::addSearchOSM(options = searchOptions(autoCollapse = T, minLength = 2)) 
+                leaflet.extras::addSearchOSM(options = searchOptions(autoCollapse = T, minLength = 2)) %>% 
+              addLayersControl(
+              baseGroups = c("Satelite Image", "Map"),
+              overlayGroups = grps,
+              options = layersControlOptions(collapsed = FALSE),
+              
+            ) %>%
+              addWMSLegend(uri = paste0(srv, '?VERSION=1.3.0&layer=', lnum, '&REQUEST=GetLegendGraphic&FORMAT=image/png'),  position =  "bottomright")
 })
     
     
-    observe({
-        
-    req(input$wProductDepth, input$wProductType, input$wProductDepth)
-
-    layer <- getLayer()
-
-    rPath <- paste0(dataStorePath, '/',  input$wProduct, '/Rasters/', layer, '.tif')
-    if(file.exists(rPath)){
-      RV$currentRaster <- raster(rPath)
-    }else{
-      RV$currentRaster <- NULL
-    }
-    
-    })
-    
+   
     
     observe({
         
-        req(input$wProductDepth, input$wProductType, input$wProductDepth)
-        
-      layer <- getLayer()
+      req(input$wProductDepth, input$wProductType, input$wProductDepth)
+      
+      srv <-str_replace(OGCserver, 'XXXX',  str_to_lower( input$wProduct))
+      V1Server <-str_replace(V1Server, 'XXXX',  RV$currentProductRecord$V1Code)
+      
+      layer = getLayer()
+      rec <- WMSMappings[WMSMappings$Name == layer, ]
+      lnum <- rec$LayerNum
+      V1L <- rec$V1
+      
+      print(rec)
+      
+     
         proxy <- leafletProxy("wMainMap")
         
-        if( !is.null(RV$currentSites)){
-          proxy %>% addMarkers( data=RV$currentSites, clusterOptions = markerClusterOptions(), group = 'Sites', layerId=paste0(RV$currentSites$ID)) 
-        }  
+         if( !is.null(RV$currentSites)){
+           proxy %>% addMarkers( data=RV$currentSites, clusterOptions = markerClusterOptions(), group = 'Sites', layerId=paste0(RV$currentSites$ID)) 
+         }  
+       
+        proxy %>%  leaflet::removeTiles('wmsl')
+        proxy %>% addTiles(group = "Map")
+        proxy %>% addWMSTiles(
+            layerId = 'wmsl',
+            baseUrl = srv,
+            layers = lnum,
+            options = WMSTileOptions(format = "image/png", transparent = T),
+            group = "SLGA_V2",
+            attribution = "TERN"
+          ) 
+        if(RV$currentProductRecord$V1Code != ''){
+          
+         
+        proxy %>% addWMSTiles(
+            layerId = 'wmsl2',
+            baseUrl = V1Server,
+            layers = V1L,
+            options = WMSTileOptions(format = "image/png", transparent = T),
+            group = "SLGA_V1",
+            attribution = "TERN"
+        )}else{
+          proxy %>%  removeTiles('wmsl2')
+          
+        }
+        
+        proxy %>% hideGroup("SLGA_V1")
+          
     })
+    
+    observe({
+      
+      req(input$wProductDepth, input$wProductType, input$wProductDepth)
+      
+      layer <- getLayer()
+      
+      rPath <- paste0(dataStorePath, '/',  input$wProduct, '/Rasters/', layer, '.tif')
+      if(file.exists(rPath)){
+        RV$currentRaster <- raster(rPath)
+      }else{
+        RV$currentRaster <- NULL
+      }
+      
+    })
+    
     
     output$downloadData <- downloadHandler(
      
         filename = function() {
                     fname <- paste0(getLayer(), '.tif')
-                    print(fname)
             fname
         },
         content = function(file) {
 
             layer <- getLayer()
-            print(paste0(dataStorePath, '/',  input$wProduct, '/Rasters/', layer, '.tif'))
             rPath <- paste0(dataStorePath, '/',  input$wProduct, '/Rasters/', layer, '.tif')
             
             if(file.exists(rPath)){
-             
+              file.copy(rPath, file)
             }else{
              
             }
                    # createAlert(session, "downloadalert", "downloadingalert", title = "", content = "<img src=wait.gif> Extracting the requested data .....", append = FALSE)
-                    file.copy(rPath, file)
                     #writeRaster(RV$currentRaster, filename = file)
                     #closeAlert(session, "downloadingalert")
         })
@@ -369,6 +418,7 @@ server <- function(input, output, session) {
            RV$currentProductRecord <- configInfo[configInfo$Product == input$wProduct, ]
            dps <- str_split(RV$currentProductRecord$Depths, ';')
            valstr = ''
+
            for (i in 1:length(RV$productDepths)) {
              rPath <- paste0(dataStorePath, '/', input$wProduct, '/Rasters/', input$wProduct,'_',  input$wProductType,'_', RV$productDepths[i], '.tif')
              if(file.exists(rPath)) { 
