@@ -53,5 +53,8 @@ Silt_Lower-CI_30-60,14,SLT_030_060_05_N_P_AU_NAT_C
 Silt_Lower-CI_15-30,15,SLT_015_030_05_N_P_AU_NAT_C
 Silt_Lower-CI_5-15,16,SLT_005_015_05_N_P_AU_NAT_C
 Silt_Lower-CI_0-5,17,SLT_000_005_05_N_P_AU_NAT_C
-ASCOrder,1,
-ASCSubOrder,0,
+ASC_Order,1,
+ASC_SubOrder,0,
+SoilDepth_Modelled-Value,1,DES_000_200_EV_N_P_AU_NAT_C
+SoilDepth_Upper-CI,0,DES_000_200_95_N_P_AU_NAT_C
+SoilDepth_Lower-CI,2,DES_000_200_05_N_P_AU_NAT_C
