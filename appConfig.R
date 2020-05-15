@@ -15,7 +15,6 @@ if(machineName == 'soils-discovery'){
 authUsr<- "Landscapes"
 authPwd <- "Sodosol"
 
-
 adminEmail <- 'ross.searle@csiro.au'
 adminName <- 'Ross Searle'
 

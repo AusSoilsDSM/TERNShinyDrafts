@@ -56,7 +56,6 @@ credentials <- data.frame(
 
 ui <- 
       secure_app( theme = 'journal', tags_top=tags$div(
-        #tags$h4("TERN Landscapes Review", style = "align:center"),
         tags$img(
           src = "Logos/TERN-NCRIS.jpg", width = 400
         ),
@@ -81,7 +80,6 @@ ui <-
     
     tags$style(
         
-        # Colorize the actionButton.
         HTML(".alert {
                          background-color: #F5F5F5;
                          padding: 0px; margin-bottom: 10px;
@@ -126,9 +124,7 @@ ui <-
                 tabPanel("Map Viewer", 
                          leafletOutput("wMainMap", height = "700")
                 ),
-                 tabPanel("Help", 
-                          #div(style = "valign:top; height:1000px;background-color: #F5F5F5; overflow: scroll height: 90vh; overflow-y: auto;",  includeHTML("Help.html"))
-                          div(style = "valign:top; height: 90vh; overflow-y: auto;",  includeHTML("Help.html"))
+                 tabPanel("Help", div(style = "valign:top; height: 90vh; overflow-y: auto;",  includeHTML("Help.html"))
                
                  )
             )
@@ -287,9 +283,9 @@ server <- function(input, output, session) {
     output$wMainMap <- renderLeaflet({
         
       req( input$wProduct, input$wProductType, input$wProductDepth)
-      srv <-str_replace(OGCserver, 'XXXX',  str_to_lower( input$wProduct))
+      srv <-str_replace(OGCserver, 'XXXX',   RV$currentProductRecord$Code)
       V1Server <-str_replace(V1Server, 'XXXX',  RV$currentProductRecord$V1Code)
-      
+
       layer = getLayer()
       rec <- WMSMappings[WMSMappings$Name == layer, ]
       lnum <- rec$LayerNum
@@ -320,7 +316,7 @@ server <- function(input, output, session) {
         
       req(input$wProductDepth, input$wProductType, input$wProductDepth)
       
-      srv <-str_replace(OGCserver, 'XXXX',  str_to_lower( input$wProduct))
+      srv <-str_replace(OGCserver, 'XXXX',   RV$currentProductRecord$Code)
       V1Server <-str_replace(V1Server, 'XXXX',  RV$currentProductRecord$V1Code)
       
       layer = getLayer()
@@ -465,5 +461,4 @@ server <- function(input, output, session) {
   
 }
 
-# Run the application 
 shinyApp(ui = ui, server = server)
