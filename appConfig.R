@@ -12,6 +12,10 @@ if(machineName == 'soils-discovery'){
   V1Server = "http://www.asris.csiro.au/arcgis/services/TERN/XXXX_ACLEP_AU_NAT_C/MapServer/WMSServer"
 }
 
+authUsr<- "Landscapes"
+authPwd <- "Sodosol"
+
+
 adminEmail <- 'ross.searle@csiro.au'
 adminName <- 'Ross Searle'
 

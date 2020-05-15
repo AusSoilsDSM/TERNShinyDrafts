@@ -45,8 +45,8 @@ idleTimer();"
 
 
 credentials <- data.frame(
-    user = c("Landscapes"),
-    password = c("1"),
+    user = c(authUsr),
+    password = c(authPwd),
     stringsAsFactors = FALSE
 )
 
