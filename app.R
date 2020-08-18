@@ -15,12 +15,13 @@ library(shinyBS)
 library(rmarkdown)
 library(shinyjs)
 library(shinycssloaders)
+library(shinyWidgets)
 
 library(shinymanager)
 library(shinyalert)
 library(shinybusy)
 library(readr)
-
+library(leafgl)
 
 source('appConfig.R')
 
@@ -71,10 +72,10 @@ ui <-
         tags$head(
             tags$link(rel="stylesheet", type="text/css",href="style.css"),
             tags$script(type="text/javascript", src = "googleAnalytics.js"),
-            tags$head(tags$link( rel="icon", type="image/png", href="favicon-32x32.png", sizes="32x32" ),
-                      tags$title("TERN Landscapes Review")
-                      
-            )
+            #tags$script(type="text/javascript", src = "cursors.js"),
+            
+            tags$link( rel="icon", type="image/png", href="favicon-32x32.png", sizes="32x32" ),
+                      tags$title("TERN Landscapes Review"),
         )
     ),
     
@@ -109,20 +110,57 @@ ui <-
                      
                      HTML('<b>Info</b>'),
                      wellPanel( 
-                       fluidRow(div(style = "text-align:left;", uiOutput("wStatsLink"))),
-                       fluidRow(div(style = "text-align:left;", uiOutput("wMethodLink")))
+                       #fluidRow(div(style = "text-align:left;", uiOutput("wStatsLink"))),
+                       fluidRow(div(style = "text-align:left;", uiOutput("wMethodLink"))),
+                       fluidRow(div(style = "text-align:left;", HTML('<BR>'))),
+                       fluidRow(div(style = "text-align:left;", uiOutput("wCodeRepoLink")))
                      ),
                      
                      HTML('<br><b>Data Downloads</b>'),
                      wellPanel( 
-                         fluidRow(downloadLink('downloadData', 'Download Entire DataSet')),
+                         fluidRow(downloadLink('downloadRasterData', 'Download entire raster dataset')),
+                         fluidRow(downloadLink('downloadSiteData', 'Download site dataset')),
                          fluidRow(div(style = "text-align:left;", uiOutput("wWCS"))),
                      )
         ),
         mainPanel(
+          singleton(
+            tags$head(tags$script('Shiny.addCustomMessageHandler("cursorCrossHair",
+                                    function(message) {
+                                     document.getElementById("wMainMap").style.cursor = "crosshair"; 
+                                    }
+                                  );'))
+          ),
+          
+          singleton(
+            tags$head(tags$script('Shiny.addCustomMessageHandler("cursorDef",
+                                    function(message) {
+                                     document.getElementById("wMainMap").style.cursor = "default"; 
+                                  }
+                                  );'))
+          ),
+          
             tabsetPanel(
-                tabPanel("Map Viewer", 
-                         leafletOutput("wMainMap", height = "700")
+                tabPanel("Map Viewer", leafletOutput("wMainMap", height = "700"),
+                         
+                         HTML('<div style="position:absolute;top: 130px; color: white;  left: 30px; z-index:1001; outline-style: double">'), 
+                         radioGroupButtons(
+                           inputId = "btnMapAction",
+                           label = HTML("&nbsp;&nbsp;Map Operations&nbsp;&nbsp;"),
+                           choices = c('Navigate', 'Info' ),
+                           selected = 'Navigate',
+                           status = "primary",
+                           direction = 'vertical',
+                           individual = F,
+                           justified = T,
+                           size = 'sm',
+                           checkIcon = list(
+                             yes = icon("check-square"),
+                             no = icon("square-o")
+                           )
+                         ), HTML(  '</div>'),
+                         
+                        
                 ),
                  tabPanel("Help", div(style = "valign:top; height: 90vh; overflow-y: auto;",  includeHTML("Help.html"))
                
@@ -142,31 +180,45 @@ server <- function(input, output, session) {
     RV$currentProductRecord <- NULL
     RV$currentSites <- NULL
     RV$currentSiteLabels <- NULL
-    RV$currentSiteData<- NULL
     RV$currentRaster <- NULL
     RV$productTypes <- NULL
     RV$productDepths <- NULL
     RV$sendCommentsTo <- NULL
+    RV$lastclick <- NULL
+    
+    observe({
+      cdata <- session$clientData
+      cnames <- names(cdata)
+      
+      allvalues <- lapply(cnames, function(name) {
+        paste(name, cdata[[name]], sep = " = ")
+      })
+    })
+   
+    
+    
+    observe({
+      req(input$btnMapAction)
+     
+      if(input$btnMapAction == 'Info'){
+       
+        session$sendCustomMessage(type = 'cursorCrossHair', message = list(a = 1))
+      }else{
+        RV$lastclick
+        session$sendCustomMessage(type = 'cursorDef', message = list(a = 2))
+      }
+    })
     
     
     output$wHelp <- renderUI({
       input$wProduct
      htm <- read_file('Help.html')
-    # print(htm)
+
       htm
     })
     
     output$wSendTo <- renderUI({
       tags$a("Send Comments", href=paste0("mailto:", RV$currentProductRecord$CommentsTo,"?Subject=TERN Review Comments : ", input$wProduct))
-    })
-    
-    output$wStatsLink <- renderUI({
-      req(RV$currentProductRecord)
-      if(RV$currentProductRecord$StatsFile != ''){
-      tags$a(paste0("Show ",input$wProduct, " Stats Summary"), href=paste0(RV$currentProductRecord$StatsFile), target="_blank")
-      }else{
-        tags$html("Stats Info Not Available")
-      }
     })
     
     
@@ -175,9 +227,17 @@ server <- function(input, output, session) {
       if(RV$currentProductRecord$MethodsFile != ''){
         tags$a(paste0("Show ",input$wProduct, " Methods Summary"), href=paste0(RV$currentProductRecord$MethodsFile), target="_blank")
       }else{
-        tags$html("Methods Info Not Available")
+        tags$html("Methods info not available")
       }
+    })
     
+    output$wCodeRepoLink <- renderUI({
+      req(RV$currentProductRecord)
+      if(RV$currentProductRecord$CodeRepository != ''){
+        tags$a(paste0("Show ",input$wProduct, " code repository"), href=paste0(RV$currentProductRecord$CodeRepository), target="_blank")
+      }else{
+        tags$html("Code repository not available")
+      }
     })
     
     output$wWCS <- renderUI({
@@ -192,7 +252,6 @@ server <- function(input, output, session) {
       if(pixels < 30000000){
       res <- paste0('&RESX=', pres, '&RESY=', pres)
       bbox <- paste0(input$wMainMap_bounds$west, ',', input$wMainMap_bounds$south, ',',input$wMainMap_bounds$east, ',',input$wMainMap_bounds$north )
-      print(input$wMainMap_bounds)
       tags$a(paste0("Download ",input$wProduct, " Current Extent"), href=paste0('http://www.asris.csiro.au/arcgis/services/SLGApReview/clay/MapServer/WcsServer?REQUEST=GetCoverage&SERVICE=WCS&VERSION=1.0.0&COVERAGE=1&CRS=EPSG:4326&BBOX=', bbox, '&FORMAT=GeoTIFF', res))
       }else{
         tags$html("")
@@ -200,12 +259,13 @@ server <- function(input, output, session) {
     })
     
     
-    #########   Productivity Map Combos   ###########################
+    #########    Map Combos   ###########################
     observe({
         
         req(configInfo)
-            products <- as.character(configInfo$Product)
-            updateSelectInput(session, "wProduct", choices =  products)
+            products <- configInfo[configInfo$Available == T,]$Product
+            selProd <- configInfo[configInfo$DefaultDisplay == T,]$Product
+            updateSelectInput(session, "wProduct", choices =  products, selected = selProd)
     })
     
     observe({
@@ -213,7 +273,7 @@ server <- function(input, output, session) {
         
             updateSelectInput(session, "wProductDepth", choices =  NULL)
             RV$currentProductRecord <- configInfo[configInfo$Product == input$wProduct, ]
-            print(RV$currentProductRecord)
+
             
             dps <- str_split(RV$currentProductRecord$Depths, ';')
             if(length(dps[[1]]) > 0 & dps != ''){
@@ -260,11 +320,11 @@ server <- function(input, output, session) {
 
             if(length(dps[[1]]) > 1){RV$isMultiLayer=T}else{RV$isMultiLayer=F}
          
-
-
-            sp <- paste0(dataStorePath, "/", input$wProduct, "/Sites/", input$wProduct, ".shp")
+            sp <- paste0(dataStorePath, "/", input$wProduct, "/Sites/", RV$currentProductRecord$SiteDataFileName  )
+ 
             if(file.exists(sp)){
-              RV$currentSites = st_read(paste0(dataStorePath, "/", input$wProduct, "/Sites/", input$wProduct, ".shp"))
+              sdf <- read.csv(sp, stringsAsFactors = F)
+              RV$currentSites = st_as_sf(sdf, coords = c("Longitude", "Latitude"), crs = 4326)
             }else{
               RV$currentSites = NULL
             }
@@ -277,9 +337,6 @@ server <- function(input, output, session) {
     
     
     
-   
-    
-    
     output$wMainMap <- renderLeaflet({
         
       req( input$wProduct, input$wProductType, input$wProductDepth)
@@ -287,7 +344,10 @@ server <- function(input, output, session) {
       V1Server <-str_replace(V1Server, 'XXXX',  RV$currentProductRecord$V1Code)
 
       layer = getLayer()
+      
+
       rec <- WMSMappings[WMSMappings$Name == layer, ]
+
       lnum <- rec$LayerNum
       
      if( RV$currentProductRecord$V1Code != '' ){
@@ -296,17 +356,19 @@ server <- function(input, output, session) {
        grps <- c( 'Sites', "SLGA_V2")
      }
             leaflet()  %>% setView(lng = 134, lat = -26, zoom = 4) %>% addProviderTiles("Esri.WorldImagery", options = providerTileOptions(noWrap = F), group = "Satelite Image") %>%
-               
-                addFullscreenControl() %>%
+
+               # addFullscreenControl() %>%
                 leafem::addMouseCoordinates() %>%
-                leaflet.extras::addSearchOSM(options = searchOptions(autoCollapse = T, minLength = 2)) %>% 
+               # leaflet.extras::addSearchOSM(options = searchOptions(autoCollapse = T, minLength = 2)) %>%
               addLayersControl(
               baseGroups = c("Satelite Image", "Map"),
               overlayGroups = grps,
               options = layersControlOptions(collapsed = FALSE),
-              
+
             ) %>%
-              addWMSLegend(uri = paste0(srv, '?VERSION=1.3.0&layer=', lnum, '&REQUEST=GetLegendGraphic&FORMAT=image/png'),  position =  "bottomright")
+              
+           
+               addWMSLegend(uri = paste0(srv, '?VERSION=1.3.0&layer=', lnum, '&REQUEST=GetLegendGraphic&FORMAT=image/png'),  position =  "bottomright")
 })
     
     
@@ -315,22 +377,23 @@ server <- function(input, output, session) {
     observe({
         
       req(input$wProductDepth, input$wProductType, input$wProductDepth)
-      
-      srv <-str_replace(OGCserver, 'XXXX',   RV$currentProductRecord$Code)
-      V1Server <-str_replace(V1Server, 'XXXX',  RV$currentProductRecord$V1Code)
+     
+      srv <-str_replace(OGCserver, 'XXXX',   str_trim( RV$currentProductRecord$Code))
+
+
+      V1Server <-str_replace(V1Server, 'XXXX',  str_trim( RV$currentProductRecord$V1Code))
+
       
       layer = getLayer()
       rec <- WMSMappings[WMSMappings$Name == layer, ]
       lnum <- rec$LayerNum
       V1L <- rec$V1
       
-      print(rec)
-      
-     
         proxy <- leafletProxy("wMainMap")
         
          if( !is.null(RV$currentSites)){
-           proxy %>% addMarkers( data=RV$currentSites, clusterOptions = markerClusterOptions(), group = 'Sites', layerId=paste0(RV$currentSites$ID)) 
+           proxy %>% addGlPoints(data = RV$currentSites, group = 'Sites', layerId=paste0(RV$currentSites$ID)) 
+           #proxy %>% addMarkers( data=RV$currentSites, clusterOptions = markerClusterOptions(), group = 'Sites', layerId=paste0(RV$currentSites$ID)) 
          }  
        
         proxy %>%  leaflet::removeTiles('wmsl')
@@ -345,7 +408,7 @@ server <- function(input, output, session) {
           ) 
         if(RV$currentProductRecord$V1Code != ''){
           
-         
+
         proxy %>% addWMSTiles(
             layerId = 'wmsl2',
             baseUrl = V1Server,
@@ -369,8 +432,10 @@ server <- function(input, output, session) {
       layer <- getLayer()
       
       rPath <- paste0(dataStorePath, '/',  input$wProduct, '/Rasters/', layer, '.tif')
+
       if(file.exists(rPath)){
         RV$currentRaster <- raster(rPath)
+        
       }else{
         RV$currentRaster <- NULL
       }
@@ -378,7 +443,7 @@ server <- function(input, output, session) {
     })
     
     
-    output$downloadData <- downloadHandler(
+    output$downloadRasterData <- downloadHandler(
      
         filename = function() {
                     fname <- paste0(getLayer(), '.tif')
@@ -394,21 +459,70 @@ server <- function(input, output, session) {
             }else{
              
             }
-                   # createAlert(session, "downloadalert", "downloadingalert", title = "", content = "<img src=wait.gif> Extracting the requested data .....", append = FALSE)
-                    #writeRaster(RV$currentRaster, filename = file)
-                    #closeAlert(session, "downloadingalert")
         })
+    
+    output$downloadSiteData <- downloadHandler(
+      
+      filename = function() {
+        fname <- paste0(input$wProduct, '_SiteDataRaw.csv')
+        fname
+      },
+      content = function(file) {
+        
+        layer <- getLayer()
+        rPath <- paste0(dataStorePath, '/',  input$wProduct, '/Sites/', input$wProduct, '_SiteDataRaw.csv')
+
+        
+        if(file.exists(rPath)){
+          file.copy(rPath, file)
+        }else{
+          
+        }
+      })
     
  
     
     observe({
-        
-        req(RV$currentRaster)
+
+      
+       # req(RV$currentRaster)
+      
+       # if( is.null(RV$lastclick ))
+       #   return()
         
         click<-input$wMainMap_click
         if(is.null(click))
             return()
+        
+        if(input$btnMapAction == 'Info'){
+          
+         
+        
+        pt <- st_sfc(st_point(c(click$lng, click$lat)), crs = 4326)
 
+        
+        #pres <- 0.0008333333333467680612
+        mwidth <- (input$wMainMap_bounds$north - input$wMainMap_bounds$south) / 100
+        circle <- st_buffer(pt,mwidth)
+        selectedPt <- which(st_contains(circle, RV$currentSites, sparse = FALSE))
+       
+        siteDataHTML <- ''
+        if(length(selectedPt) > 0){
+          sdf <- st_drop_geometry( RV$currentSites[selectedPt[1],])
+          siteDataHTML <- '<div style="display: inline-block;white-space: nowrap"><table align="left" style="border:0px solid black;margin-left:auto;margin-right:auto;">'
+          siteDataHTML <- paste0(siteDataHTML,  '<th colspan="3">Observed Site Data</th>')
+          for (j in 1:ncol(sdf)) {
+            if(colnames(sdf)[j] != 'Latitude' & colnames(sdf)[j] != 'Longitude' ){
+              siteDataHTML <- paste0(siteDataHTML,  '<tr><td style="text-align:left">',  colnames(sdf)[j], '</td><td style="text-align:center">=</td><td  style="text-align:right">', sdf[j], '</td></tr>' )
+            }
+          }
+          siteDataHTML <- paste0(siteDataHTML,  '</table></div><BR><BR><div style="display: inline-block;white-space: nowrap">')
+        }
+        
+
+        siteDataHTML <- paste0(siteDataHTML,'<table align="left" style="border:0px solid black;margin-left:auto;margin-right:auto;">')
+        siteDataHTML <- paste0(siteDataHTML,  '<th colspan="3">Modelled Values</th>')
+        
        if(!is.null(RV$productDepths) ){
            
            RV$currentProductRecord <- configInfo[configInfo$Product == input$wProduct, ]
@@ -420,43 +534,32 @@ server <- function(input, output, session) {
              if(file.exists(rPath)) { 
                 r <- raster(rPath)
                 ptVal <- extract(r, data.frame(click$lng, click$lat))
-                valstr <- paste0(valstr, '<li>',dps[[1]][i],' : ', format(round(ptVal, 2), nsmall = 2), '</li>')
-                print(i)
+                #valstr <- paste0(valstr, '<li>',dps[[1]][i],' : ', format(round(ptVal, 2), nsmall = 2), '</li>')
+                siteDataHTML <- paste0(siteDataHTML,  '<tr><td style="text-align:left">', dps[[1]][i], '</td><td style="text-align:center">=</td><td  style="text-align:right">', format(round(ptVal, 2), nsmall = 2), '</td></tr>' )
              }
            }
        }else{
            ptVal <- extract(RV$currentRaster, data.frame(click$lng, click$lat))
            valstr = paste0('<b>', format(round(ptVal, 2), nsmall = 2), '</br>')
+           
+           siteDataHTML <- paste0(siteDataHTML,  '<tr><td style="text-align:left"> Modelled ', input$wProduct, '</td><td style="text-align:center">=</td><td  style="text-align:right">', format(round(ptVal, 2), nsmall = 2), '</td></tr>' )
+           
 
        }
-        shinyalert(input$wProduct,  valstr, type = "info", html=T, animation = F)
         
+        siteDataHTML <- paste0(siteDataHTML,  '</table></div><BR>')
+        
+        htmlOut = paste0(siteDataHTML)
+
+        shinyalert(input$wProduct, htmlOut, type = "info", html=T, animation = F)
+       
+        
+      }else{
+        RV$lastclick <- NULL
+    }
+       
     })
     
-    
-    observe({
-
-      req(RV$currentRaster)
-
-      click<-input$wMainMap_marker_click
-      if(is.null(click))
-        return()
-      
-      print(click)
-      
-      df <-  st_drop_geometry( RV$currentSites[RV$currentSites$ID==click$id, ] )
-     
-     lab <- paste0( '<Table style="border:0px solid black;margin-left:auto;margin-right:auto;">
-                    <tr><td>Site Name</td><td>', df[1, "ID"], '</td></td>',
-                    '<tr><td>S0-5cm</td><td>', if(!is.na(df[1, "GSM1"])){format(round(df[1, "GSM1"], 2), nsmall = 2)}else{'NA'}, '</td></td>',
-                    '<tr><td>S5-15cm</td><td>',  if(!is.na(df[1, "GSM2"])){format(round(df[1, "GSM2"], 2), nsmall = 2)}else{'NA'}, '</td></td>',
-                    '<tr><td>S15-30cm</td><td>',  if(!is.na(df[1, "GSM3"])){format(round(df[1, "GSM3"], 2), nsmall = 2)}else{'NA'}, '</td></td>',
-                    '<tr><td>S30-60cm</td><td>',  if(!is.na(df[1, "GSM4"])){format(round(df[1, "GSM4"], 2), nsmall = 2)}else{'NA'}, '</td></td>',
-                    '<tr><td>S60-100cm</td><td>',  if(!is.na(df[1, "GSM5"])){format(round(df[1, "GSM5"], 2), nsmall = 2)}else{'NA'}, '</td></td>',
-                    '<tr><td>S100-200cm</td><td>',  if(!is.na(df[1, "GSM6"])){format(round(df[1, "GSM6"], 2), nsmall = 2)}else{'NA'}, '</td></td></table>')
-      
-      shinyalert(paste0('Observed Data : ', input$wProduct),  lab, type = "info", html=T, animation = F)
-    })
     
   
 }
