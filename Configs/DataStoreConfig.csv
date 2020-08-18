@@ -1,6 +1,8 @@
-Product,Code,Depths,Units,Types,CommentsTo,StatsFile,MethodsFile,V1Code
-Clay,clay,0-5;5-15;15-30;30-60;60-100;100-200,Proportion,Modelled-Value;Lower-CI;Upper-CI,Brendan.Malone@csiro.au;Ross.Searle@csiro.au,https://aussoilsdsm.esoil.io/covariate-data/covariate-data-pca,https://aussoilsdsm.esoil.io/covariate-data/covariate-data-pca,CLY
-Sand,sand,0-5;5-15;15-30;30-60;60-100;100-200,Proportion,Modelled-Value;Lower-CI;Upper-CI,Brendan.Malone@csiro.au;Ross.Searle@csiro.au,,,SND
-Silt,silt,0-5;5-15;15-30;30-60;60-100;100-200,Proportion,Modelled-Value;Lower-CI;Upper-CI,Brendan.Malone@csiro.au;Ross.Searle@csiro.au,,,SLT
-SoilDepth,soilDepth,,cm,Modelled-Value;Lower-CI;Upper-CI,Brendan.Malone@csiro.au;Ross.Searle@csiro.au,,,DES
-ASC,ASC,,None,Order;SubOrder,Ross.Searle@csiro.au,,,
+Product,Available,DefaultDisplay,Code,Depths,Units,Types,CommentsTo,MethodsFile,V1Code,CodeRepository,SiteDataFileName
+Clay,T,F,CLY_N_P_AU_NAT_N_20200810,0-5;5-15;15-30;30-60;60-100;100-200,Proportion,Modelled-Value;Lower-CI;Upper-CI,Brendan.Malone@csiro.au;Ross.Searle@csiro.au,https://aussoilsdsm.esoil.io/slga-version-2-products/soil-texture,CLY,https://github.com/AusSoilsDSM/SLGA/tree/master/SLGA/Development/soiltexture,Clay_SiteDataRaw.csv
+Sand,T,F,SND_N_P_AU_NAT_N_20200810,0-5;5-15;15-30;30-60;60-100;100-200,Proportion,Modelled-Value;Lower-CI;Upper-CI,Brendan.Malone@csiro.au;Ross.Searle@csiro.au,https://aussoilsdsm.esoil.io/slga-version-2-products/soil-texture,SND,https://github.com/AusSoilsDSM/SLGA/tree/master/SLGA/Development/soiltexture,Sand_SiteDataRaw.csv
+Silt,T,F,SLT_N_P_AU_NAT_N_20200810,0-5;5-15;15-30;30-60;60-100;100-200,Proportion,Modelled-Value;Lower-CI;Upper-CI,Brendan.Malone@csiro.au;Ross.Searle@csiro.au,https://aussoilsdsm.esoil.io/slga-version-2-products/soil-texture,SLT,https://github.com/AusSoilsDSM/SLGA/tree/master/SLGA/Development/soiltexture,Silt_SiteDataRaw.csv
+SoilDepth,T,T,DES_N_P_AU_NAT_N_20200810,,cm,Modelled-Value;Lower-CI;Upper-CI,Brendan.Malone@csiro.au;Ross.Searle@csiro.au,https://aussoilsdsm.esoil.io/slga-version-2-products/soil-thickness,DES,https://github.com/AusSoilsDSM/SLGA/tree/master/SLGA/Development/soilThickness,SoilDepth_SiteDataRaw.csv
+ASCOrder,F,F,ASC,,None,,Ross.Searle@csiro.au,,,https://github.com/AusSoilsDSM/SLGA/tree/master/SLGA/Production/NationalMaps/AustralianSoilClassification,
+ASCSubOrder,F,F,ASC,,None,,Ross.Searle@csiro.au,,,https://github.com/AusSoilsDSM/SLGA/tree/master/SLGA/Production/NationalMaps/AustralianSoilClassification,
+AvailableP,T,F,AP_N_P_AU_NAT_N_20200810,0-5,mgPerKg,Modelled-Value;Lower-CI;Upper-CI,peter.zund@des.qld.gov.au,https://aussoilsdsm.esoil.io/slga-version-2-products/available-phosphorus,,https://github.com/AusSoilsDSM/SLGA/tree/master/SLGA/Development/AvailP,AvailableP_SiteDataRaw.csv
