@@ -127,7 +127,7 @@ ui <-
           singleton(
             tags$head(tags$script('Shiny.addCustomMessageHandler("cursorCrossHair",
                                     function(message) {
-                                     document.getElementById("wMainMap").style.cursor = "crosshair"; 
+                                     document.getElementById("wMainMap").style.cursor = "help"; 
                                     }
                                   );'))
           ),
@@ -135,7 +135,7 @@ ui <-
           singleton(
             tags$head(tags$script('Shiny.addCustomMessageHandler("cursorDef",
                                     function(message) {
-                                     document.getElementById("wMainMap").style.cursor = "default"; 
+                                     document.getElementById("wMainMap").style.cursor = "grab"; 
                                   }
                                   );'))
           ),
@@ -184,7 +184,7 @@ server <- function(input, output, session) {
     RV$productTypes <- NULL
     RV$productDepths <- NULL
     RV$sendCommentsTo <- NULL
-    RV$lastclick <- NULL
+    RV$MapMode <- 'Navigate'
     
     observe({
       cdata <- session$clientData
@@ -204,7 +204,7 @@ server <- function(input, output, session) {
        
         session$sendCustomMessage(type = 'cursorCrossHair', message = list(a = 1))
       }else{
-        RV$lastclick
+        # RV$lastclick
         session$sendCustomMessage(type = 'cursorDef', message = list(a = 2))
       }
     })
@@ -355,7 +355,11 @@ server <- function(input, output, session) {
      }else{
        grps <- c( 'Sites', "SLGA_V2")
      }
-            leaflet()  %>% setView(lng = 134, lat = -26, zoom = 4) %>% addProviderTiles("Esri.WorldImagery", options = providerTileOptions(noWrap = F), group = "Satelite Image") %>%
+            leaflet(options = leafletOptions(dragging = FALSE)) %>%
+            
+          
+            
+             setView(lng = 134, lat = -26, zoom = 4) %>% addProviderTiles("Esri.WorldImagery", options = providerTileOptions(noWrap = F), group = "Satelite Image") %>%
 
                # addFullscreenControl() %>%
                 leafem::addMouseCoordinates() %>%
@@ -389,7 +393,7 @@ server <- function(input, output, session) {
       lnum <- rec$LayerNum
       V1L <- rec$V1
       
-        proxy <- leafletProxy("wMainMap")
+        proxy <- leafletProxy("wMainMap" )
         
          if( !is.null(RV$currentSites)){
            proxy %>% addGlPoints(data = RV$currentSites, group = 'Sites', layerId=paste0(RV$currentSites$ID)) 
@@ -481,31 +485,35 @@ server <- function(input, output, session) {
       })
     
  
+ 
+####  Point query the Map  ##############  
     
     observe({
+      req(input$btnMapAction)
+      RV$MapMode = input$btnMapAction
+     
+    })
+    
+    observe({
+      
+      click<-input$wMainMap_click
+      mapMode <- isolate(RV$MapMode)
+      print(paste0("Map mode is - ", mapMode))
+      
 
-      
-       # req(RV$currentRaster)
-      
-       # if( is.null(RV$lastclick ))
-       #   return()
-        
-        click<-input$wMainMap_click
-        if(is.null(click))
-            return()
-        
-        if(input$btnMapAction == 'Info'){
-          
-         
-        
+       if(mapMode == 'Info'){
+
+
+      #   if(is.null(click))
+      #     return()
+      #
+      #
         pt <- st_sfc(st_point(c(click$lng, click$lat)), crs = 4326)
 
-        
-        #pres <- 0.0008333333333467680612
         mwidth <- (input$wMainMap_bounds$north - input$wMainMap_bounds$south) / 100
         circle <- st_buffer(pt,mwidth)
         selectedPt <- which(st_contains(circle, RV$currentSites, sparse = FALSE))
-       
+
         siteDataHTML <- ''
         if(length(selectedPt) > 0){
           sdf <- st_drop_geometry( RV$currentSites[selectedPt[1],])
@@ -518,46 +526,36 @@ server <- function(input, output, session) {
           }
           siteDataHTML <- paste0(siteDataHTML,  '</table></div><BR><BR><div style="display: inline-block;white-space: nowrap">')
         }
-        
+
 
         siteDataHTML <- paste0(siteDataHTML,'<table align="left" style="border:0px solid black;margin-left:auto;margin-right:auto;">')
         siteDataHTML <- paste0(siteDataHTML,  '<th colspan="3">Modelled Values</th>')
-        
-       if(!is.null(RV$productDepths) ){
-           
-           RV$currentProductRecord <- configInfo[configInfo$Product == input$wProduct, ]
-           dps <- str_split(RV$currentProductRecord$Depths, ';')
-           valstr = ''
 
-           for (i in 1:length(RV$productDepths)) {
-             rPath <- paste0(dataStorePath, '/', input$wProduct, '/Rasters/', input$wProduct,'_',  input$wProductType,'_', RV$productDepths[i], '.tif')
-             if(file.exists(rPath)) { 
-                r <- raster(rPath)
-                ptVal <- extract(r, data.frame(click$lng, click$lat))
-                #valstr <- paste0(valstr, '<li>',dps[[1]][i],' : ', format(round(ptVal, 2), nsmall = 2), '</li>')
-                siteDataHTML <- paste0(siteDataHTML,  '<tr><td style="text-align:left">', dps[[1]][i], '</td><td style="text-align:center">=</td><td  style="text-align:right">', format(round(ptVal, 2), nsmall = 2), '</td></tr>' )
-             }
-           }
-       }else{
-           ptVal <- extract(RV$currentRaster, data.frame(click$lng, click$lat))
-           valstr = paste0('<b>', format(round(ptVal, 2), nsmall = 2), '</br>')
-           
-           siteDataHTML <- paste0(siteDataHTML,  '<tr><td style="text-align:left"> Modelled ', input$wProduct, '</td><td style="text-align:center">=</td><td  style="text-align:right">', format(round(ptVal, 2), nsmall = 2), '</td></tr>' )
-           
+        if(!is.null(RV$productDepths) ){
 
-       }
-        
+          RV$currentProductRecord <- configInfo[configInfo$Product == input$wProduct, ]
+          dps <- str_split(RV$currentProductRecord$Depths, ';')
+          valstr = ''
+
+          for (i in 1:length(RV$productDepths)) {
+            rPath <- paste0(dataStorePath, '/', input$wProduct, '/Rasters/', input$wProduct,'_',  input$wProductType,'_', RV$productDepths[i], '.tif')
+            if(file.exists(rPath)) {
+              r <- raster(rPath)
+              ptVal <- extract(r, data.frame(click$lng, click$lat))
+              siteDataHTML <- paste0(siteDataHTML,  '<tr><td style="text-align:left">', dps[[1]][i], '</td><td style="text-align:center">=</td><td  style="text-align:right">', format(round(ptVal, 2), nsmall = 2), '</td></tr>' )
+            }
+          }
+        }else{
+          ptVal <- extract(RV$currentRaster, data.frame(click$lng, click$lat))
+          valstr = paste0('<b>', format(round(ptVal, 2), nsmall = 2), '</br>')
+
+          siteDataHTML <- paste0(siteDataHTML,  '<tr><td style="text-align:left"> Modelled ', input$wProduct, '</td><td style="text-align:center">=</td><td  style="text-align:right">', format(round(ptVal, 2), nsmall = 2), '</td></tr>' )
+        }
+
         siteDataHTML <- paste0(siteDataHTML,  '</table></div><BR>')
-        
         htmlOut = paste0(siteDataHTML)
-
         shinyalert(input$wProduct, htmlOut, type = "info", html=T, animation = F)
-       
-        
-      }else{
-        RV$lastclick <- NULL
-    }
-       
+       }else{}
     })
     
     
