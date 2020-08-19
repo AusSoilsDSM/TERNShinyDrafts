@@ -1,7 +1,7 @@
 
 machineName <- Sys.info()['nodename'] 
 if(machineName == 'soils-discovery'){
-  dataStorePath <- '/OSM/CBR/LW_SOILDATAREPO/work/TERNLandscapes/ReviewDataStore'
+  dataStorePath <- '/datasets/work/lw-soildatarepo/work/TERNLandscapes/ReviewDataStore'
   #OGCserver = "http://ternsoil2:8080/cgi-bin/mapserv.exe?map=C:/ms4w/SLGA/SLGA.map"
   OGCserver =  "https://www.asris.csiro.au/arcgis/services/TERNL/XXXX/MapServer/WMSServer"
   V1Server = "http://www.asris.csiro.au/arcgis/services/TERN/XXXX_ACLEP_AU_NAT_C/MapServer/WMSServer"
