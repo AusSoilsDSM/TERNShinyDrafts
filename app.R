@@ -124,6 +124,8 @@ ui <-
                      )
         ),
         mainPanel(
+         
+          
           singleton(
             tags$head(tags$script('Shiny.addCustomMessageHandler("cursorCrossHair",
                                     function(message) {
@@ -554,7 +556,11 @@ server <- function(input, output, session) {
 
         siteDataHTML <- paste0(siteDataHTML,  '</table></div><BR>')
         htmlOut = paste0(siteDataHTML)
-        shinyalert(input$wProduct, htmlOut, type = "info", html=T, animation = F)
+        
+        showModal(modalDialog( title = paste0("Attribute Data for ", input$wProduct), HTML( htmlOut), easyClose = T, fade = F, size = 's' ))
+        
+        
+       # shinyalert(input$wProduct, htmlOut, type = "info", html=T, animation = F)
        }else{}
     })
     
