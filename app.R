@@ -357,7 +357,7 @@ server <- function(input, output, session) {
      }else{
        grps <- c( 'Sites', "SLGA_V2")
      }
-            leaflet(options = leafletOptions(dragging = FALSE)) %>%
+            leaflet(options = leafletOptions(dragging = T)) %>%
             
           
             
@@ -558,9 +558,9 @@ server <- function(input, output, session) {
         htmlOut = paste0(siteDataHTML)
         
         showModal(modalDialog( title = paste0("Attribute Data for ", input$wProduct), HTML( htmlOut), easyClose = T, fade = F, size = 's' ))
-        
-        
-       # shinyalert(input$wProduct, htmlOut, type = "info", html=T, animation = F)
+
+        #shinyalert(input$wProduct, htmlOut, type = "info", html=T, animation = F,  closeOnEsc = TRUE, closeOnClickOutside = T)
+
        }else{}
     })
     
