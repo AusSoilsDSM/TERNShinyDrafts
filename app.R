@@ -145,7 +145,7 @@ ui <-
             tabsetPanel(
                 tabPanel("Map Viewer", leafletOutput("wMainMap", height = "700"),
                          
-                         HTML('<div style="position:absolute;top: 130px; color: white;  left: 30px; z-index:1001; outline-style: double">'), 
+                         HTML('<div style="position:absolute;top: 130px; color: white; height:260px;  left: 30px; z-index:1001; outline-style: double">'), 
                          radioGroupButtons(
                            inputId = "btnMapAction",
                            label = HTML("&nbsp;&nbsp;Map Operations&nbsp;&nbsp;"),
@@ -160,7 +160,25 @@ ui <-
                              yes = icon("check-square"),
                              no = icon("square-o")
                            )
-                         ), HTML(  '</div>'),
+                         ), 
+                         absolutePanel(top = 100, left = 20, HTML('<B>Map Opacity</B>')),
+                         
+                         absolutePanel(top = 140, left = 30, 
+                                       noUiSliderInput(
+                                         inputId = "wgtMapOpacity", label = NULL,
+                                         min = 0, max = 100, step = 5,
+                                         value = c(100), margin = 150,
+                                         orientation = "vertical",
+                                         width = "50px", height = "100px",
+                                         direction = "rtl",
+                                         color = 'blue',
+                                         tooltips = F
+                                       )
+                         ),
+                         
+                         HTML(  '</div>'),
+                         
+                        
                          
                         
                 ),
@@ -353,13 +371,20 @@ server <- function(input, output, session) {
       lnum <- rec$LayerNum
       
      if( RV$currentProductRecord$V1Code != '' ){
-       grps <- c( 'Sites',"SLGA_V1", "SLGA_V2")
+       grps <- c( "Bio", 'Sites',"SLGA_V1", "SLGA_V2")
      }else{
-       grps <- c( 'Sites', "SLGA_V2")
+       grps <- c( "Bio", 'Sites', "SLGA_V2")
      }
             leaflet(options = leafletOptions(dragging = T)) %>%
             
-          
+              addWMSTiles(
+                layerId = 'wmsg',
+                baseUrl = 'https://www.asris.csiro.au/arcgis/services/ASRIS/physiographicRegions2011/MapServer/WMSServer',
+                layers = '3',
+                options = WMSTileOptions(format = "image/png", transparent = T),
+                group = "Bio",
+                attribution = ""
+              )  %>%
             
              setView(lng = 134, lat = -26, zoom = 4) %>% addProviderTiles("Esri.WorldImagery", options = providerTileOptions(noWrap = F), group = "Satelite Image") %>%
 
@@ -372,7 +397,6 @@ server <- function(input, output, session) {
               options = layersControlOptions(collapsed = FALSE),
 
             ) %>%
-              
            
                addWMSLegend(uri = paste0(srv, '?VERSION=1.3.0&layer=', lnum, '&REQUEST=GetLegendGraphic&FORMAT=image/png'),  position =  "bottomright")
 })
@@ -408,7 +432,7 @@ server <- function(input, output, session) {
             layerId = 'wmsl',
             baseUrl = srv,
             layers = lnum,
-            options = WMSTileOptions(format = "image/png", transparent = T),
+            options = WMSTileOptions(format = "image/png", transparent = T, opacity = input$wgtMapOpacity/100),
             group = "SLGA_V2",
             attribution = "TERN"
           ) 
@@ -419,7 +443,7 @@ server <- function(input, output, session) {
             layerId = 'wmsl2',
             baseUrl = V1Server,
             layers = V1L,
-            options = WMSTileOptions(format = "image/png", transparent = T),
+            options = WMSTileOptions(format = "image/png", transparent = T, opacity = input$wgtMapOpacity/100),
             group = "SLGA_V1",
             attribution = "TERN"
         )}else{
@@ -511,22 +535,26 @@ server <- function(input, output, session) {
       #
       #
         pt <- st_sfc(st_point(c(click$lng, click$lat)), crs = 4326)
-
+print('MMMMMMMMMMMMMMMMMMMMMMMMMMM')
         mwidth <- (input$wMainMap_bounds$north - input$wMainMap_bounds$south) / 100
         circle <- st_buffer(pt,mwidth)
+        if(!is.null(RV$currentSites)){
         selectedPt <- which(st_contains(circle, RV$currentSites, sparse = FALSE))
+        }else{selectedPt <- NULL}
 
         siteDataHTML <- ''
-        if(length(selectedPt) > 0){
-          sdf <- st_drop_geometry( RV$currentSites[selectedPt[1],])
-          siteDataHTML <- '<div style="display: inline-block;white-space: nowrap"><table align="left" style="border:0px solid black;margin-left:auto;margin-right:auto;">'
-          siteDataHTML <- paste0(siteDataHTML,  '<th colspan="3">Observed Site Data</th>')
-          for (j in 1:ncol(sdf)) {
-            if(colnames(sdf)[j] != 'Latitude' & colnames(sdf)[j] != 'Longitude' ){
-              siteDataHTML <- paste0(siteDataHTML,  '<tr><td style="text-align:left">',  colnames(sdf)[j], '</td><td style="text-align:center">=</td><td  style="text-align:right">', sdf[j], '</td></tr>' )
+        if(!is.null(selectedPt)){
+            if(length(selectedPt) > 0){
+              sdf <- st_drop_geometry( RV$currentSites[selectedPt[1],])
+              siteDataHTML <- '<div style="display: inline-block;white-space: nowrap"><table align="left" style="border:0px solid black;margin-left:auto;margin-right:auto;">'
+              siteDataHTML <- paste0(siteDataHTML,  '<th colspan="3">Observed Site Data</th>')
+              for (j in 1:ncol(sdf)) {
+                if(colnames(sdf)[j] != 'Latitude' & colnames(sdf)[j] != 'Longitude' ){
+                  siteDataHTML <- paste0(siteDataHTML,  '<tr><td style="text-align:left">',  colnames(sdf)[j], '</td><td style="text-align:center">=</td><td  style="text-align:right">', sdf[j], '</td></tr>' )
+                }
+              }
+              siteDataHTML <- paste0(siteDataHTML,  '</table></div><BR><BR><div style="display: inline-block;white-space: nowrap">')
             }
-          }
-          siteDataHTML <- paste0(siteDataHTML,  '</table></div><BR><BR><div style="display: inline-block;white-space: nowrap">')
         }
 
 
