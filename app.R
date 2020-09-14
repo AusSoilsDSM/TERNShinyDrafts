@@ -71,11 +71,12 @@ ui <-
     tagList(
         tags$head(
             tags$link(rel="stylesheet", type="text/css",href="style.css"),
-            tags$script(type="text/javascript", src = "googleAnalytics.js"),
+           
             #tags$script(type="text/javascript", src = "cursors.js"),
             
             tags$link( rel="icon", type="image/png", href="favicon-32x32.png", sizes="32x32" ),
-                      tags$title("TERN Landscapes Review"),
+                      tags$title("TERN Landscapes Review")
+            #includeHTML(("./google-analytics.html"))
         )
     ),
     
@@ -97,7 +98,7 @@ ui <-
             
             <font size='6'><b>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
             TERN Landscapes Draft Map Products</b></font></p>"),
-    
+    tags$script(type="text/javascript", src = "googleAnalytics.js"),
     
     sidebarLayout(
         sidebarPanel(width=2, HTML('The information contained in this site is only for the use of the TERN Landscapes team. <b>Do not distribute information outside of the project team.</b><br><br>'),
@@ -371,9 +372,9 @@ server <- function(input, output, session) {
       lnum <- rec$LayerNum
       
      if( RV$currentProductRecord$V1Code != '' ){
-       grps <- c( "Bio", 'Sites',"SLGA_V1", "SLGA_V2")
+       grps <- c( "BioRegions", 'Sites',"SLGA_V1", "SLGA_V2")
      }else{
-       grps <- c( "Bio", 'Sites', "SLGA_V2")
+       grps <- c( "BioRegions", 'Sites', "SLGA_V2")
      }
             leaflet(options = leafletOptions(dragging = T)) %>%
             
@@ -382,7 +383,7 @@ server <- function(input, output, session) {
                 baseUrl = 'https://www.asris.csiro.au/arcgis/services/ASRIS/physiographicRegions2011/MapServer/WMSServer',
                 layers = '3',
                 options = WMSTileOptions(format = "image/png", transparent = T),
-                group = "Bio",
+                group = "BioRegions",
                 attribution = ""
               )  %>%
             
